@@ -1,0 +1,5 @@
+plugin_name#:#Exercise Status File
+plugin_description#:#Extends exercises with automatic status file functionality for multi-feedback
+status_files_added#:#Status files were added to download
+status_files_processed#:#Status files were processed successfully
+status_processing_error#:#Error processing status files
