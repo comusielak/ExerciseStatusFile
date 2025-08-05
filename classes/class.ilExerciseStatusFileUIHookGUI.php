@@ -39,7 +39,7 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
     {
         global $DIC;
         $logger = $DIC->logger()->root();
-        
+
         $logger->info("ExerciseStatusFile Plugin: Handling feedback download");
         
         if (!isset($a_par['assignment']) || !isset($a_par['members']) || !isset($a_par['zip'])) {
@@ -104,7 +104,7 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
             $user_ids = is_array($members) ? array_keys($members) : $members;
             
             $status_file = new ilPluginExAssignmentStatusFile();
-            $status_file->init($assignment, $user_ids);
+            $status_file->init($assignment);
             
             $status_file->setFormat(ilPluginExAssignmentStatusFile::FORMAT_XML);
             $xlsx_path = $tmp_dir . '/status.xlsx';

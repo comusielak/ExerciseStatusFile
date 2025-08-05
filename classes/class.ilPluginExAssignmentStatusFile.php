@@ -23,7 +23,7 @@ class ilPluginExAssignmentStatusFile extends ilExcel
     protected bool $writetofile_success = false;
     protected ilLogger $log;
 
-    public function init(ilExAssignment $assignment, $user_ids = null) {
+    public function init(ilExAssignment $assignment) {
         $this->members = [];
         $this->teams = [];
         $this->updates = [];
@@ -34,9 +34,9 @@ class ilPluginExAssignmentStatusFile extends ilExcel
         global $DIC;
         $this->log = $DIC->logger()->root();        
 
-        $this->initMembers($user_ids);
+        $this->initMembers();
         if ($this->assignment->getAssignmentType()->usesTeams()) {
-            $this->initTeams($user_ids);
+            $this->initTeams();
         }
     }
 
@@ -93,86 +93,168 @@ class ilPluginExAssignmentStatusFile extends ilExcel
         return $this->loadfromfile_success;
     }
 
-    public function writeToFile($a_file): void {
-        try {
-            if ($this->assignment->getAssignmentType()->usesTeams()) {
-                $this->writeTeamSheet();
-            }
-            else {
-                $this->writeMemberSheet();
-            }
-            $writer = IOFactory::createWriter($this->workbook, $this->format);
-            $writer->save($a_file);
-            $this->writetofile_success = true;
-            return;
+public function writeToFile($a_file): void {
+    try {
+        $this->log->info("Plugin StatusFile: Starting writeToFile - Members count: " . count($this->members));
+        $this->log->info("Plugin StatusFile: Teams count: " . count($this->teams));
+        $this->log->info("Plugin StatusFile: Format: " . $this->format);
+        
+        // Workbook initialisieren falls noch nicht geschehen
+        if (!$this->workbook) {
+            $this->workbook = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         }
-        catch (Exception $e) {
-            $this->error = $e->getMessage();
-            $this->writetofile_success = false;
-            return;
+        
+        // Alle existierenden Sheets entfernen
+        while ($this->workbook->getSheetCount() > 0) {
+            $this->workbook->removeSheetByIndex(0);
         }
+        
+        if ($this->assignment->getAssignmentType()->usesTeams()) {
+            $this->writeTeamSheet();
+        } else {
+            $this->writeMemberSheet();
+        }
+        
+        // Writer erstellen und Datei speichern
+        $writer = IOFactory::createWriter($this->workbook, $this->format);
+        $writer->save($a_file);
+        
+        $this->writetofile_success = true;
+        $this->log->info("Plugin StatusFile: Successfully wrote file: " . $a_file);
+        
+    } catch (Exception $e) {
+        $this->error = $e->getMessage();
+        $this->writetofile_success = false;
+        $this->log->error("Plugin StatusFile: Error in writeToFile: " . $e->getMessage());
+        throw $e;
     }
+}
 
     protected function prepareString($a_value): string
     {
         return $a_value;
     }
 
-    protected function initMembers($usr_ids = null) {
-        $members = $this->assignment->getMemberListData();
+protected function initMembers() {
+    global $DIC;
+    $db = $DIC->database();
+    
+    try {
+        $exercise_obj_id = $this->assignment->getExerciseId();
+        $assignment_id = $this->assignment->getId();
+        
+        $this->log->info("Plugin StatusFile: Initializing members for exercise obj_id: $exercise_obj_id, assignment_id: $assignment_id");
+        
+        // Mitglieder der Übung aus der Datenbank holen
+        $member_query = "SELECT usr_id FROM exc_members WHERE obj_id = " . $db->quote($exercise_obj_id, 'integer');
+        $member_result = $db->query($member_query);
+        
+        $all_member_ids = [];
+        while ($row = $db->fetchAssoc($member_result)) {
+            $all_member_ids[] = (int)$row['usr_id'];
+        }     
 
-        if (isset($usr_ids)) {
-            foreach ($members as $id => $member) {
-                if (in_array($id, $usr_ids)) {
-                    $this->members[$id] = $member;
+        $this->members = $all_member_ids;
+        $member_ids = $all_member_ids;
+        
+        $this->log->info("Plugin StatusFile: Found " . count($all_member_ids) . " total members in database");
+        
+        // Wenn spezifische User-IDs übergeben wurden, nur diese verwenden
+        /*if (isset($usr_ids)) {
+            $member_ids = array_intersect($all_member_ids, $usr_ids);
+            $this->log->info("Plugin StatusFile: Filtered to " . count($member_ids) . " specific members");
+        } else {
+            $member_ids = $all_member_ids;
+        }*/
+        
+        if (empty($member_ids)) {
+            $this->log->warning("Plugin StatusFile: No member IDs to process");
+            $this->members = [];
+            return;
+        }
+        
+        // User-Daten aus der Datenbank holen
+        $user_ids_string = implode(',', array_map('intval', $member_ids));
+        
+        $user_query = "SELECT usr_id, login, firstname, lastname FROM usr_data 
+                       WHERE usr_id IN ($user_ids_string) AND active = 1";
+        
+        $user_result = $db->query($user_query);
+        $users = [];
+        
+        while ($row = $db->fetchAssoc($user_result)) {
+            $users[(int)$row['usr_id']] = $row;
+        }
+        
+        $this->log->info("Plugin StatusFile: Found " . count($users) . " active users");
+        
+        // Assignment Member Status aus der Datenbank holen
+        $status_query = "SELECT usr_id, status, mark, notice, u_comment 
+                         FROM exc_mem_ass_status 
+                         WHERE ass_id = " . $db->quote($assignment_id, 'integer') . "
+                         AND usr_id IN ($user_ids_string)";
+        
+        $status_result = $db->query($status_query);
+        $statuses = [];
+        
+        while ($row = $db->fetchAssoc($status_result)) {
+            $statuses[(int)$row['usr_id']] = $row;
+        }
+        
+        $this->log->info("Plugin StatusFile: Found " . count($statuses) . " status records");
+        
+        $this->members = [];
+        
+        foreach ($member_ids as $user_id) {
+            $user_data = $users[$user_id] ?? null;
+            $status_data = $statuses[$user_id] ?? null;
+            
+            if (!$user_data) {
+                $this->log->warning("Plugin StatusFile: No user data found for user $user_id");
+                continue;
+            }
+            
+            // Status konvertieren
+            $status_string = 'notgraded';
+            if ($status_data && !empty($status_data['status'])) {
+                switch ($status_data['status']) {
+                    case 'passed':
+                        $status_string = 'passed';
+                        break;
+                    case 'failed':
+                        $status_string = 'failed';
+                        break;
+                    default:
+                        $status_string = 'notgraded';
+                        break;
                 }
             }
+            
+            $this->members[$user_id] = [
+                'usr_id' => $user_id,
+                'login' => $user_data['login'] ?? '',
+                'lastname' => $user_data['lastname'] ?? '',
+                'firstname' => $user_data['firstname'] ?? '',
+                'status' => $status_string,
+                'mark' => $status_data['mark'] ?? '',
+                'notice' => $status_data['notice'] ?? '',
+                'comment' => $status_data['comment'] ?? '',
+                'plag_flag' => 'none',
+                'plag_comment' => ''
+            ];
+            
+            $this->log->info("Plugin StatusFile: Added member data for user $user_id: " . 
+                ($user_data['firstname'] ?? '') . ' ' . ($user_data['lastname'] ?? '') . 
+                ' (' . ($user_data['login'] ?? '') . ') - Status: ' . $status_string);
         }
-        else {
-            $this->members = $members;
-        }
+        
+        $this->log->info("Plugin StatusFile: Successfully initialized " . count($this->members) . " members via database");
+        
+    } catch (Exception $e) {
+        $this->log->error("Plugin StatusFile: Error in initMembers: " . $e->getMessage());
+        $this->members = [];
     }
-
-    protected function initTeams($usr_ids = null) {
-        $teams = ilExAssignmentTeam::getInstancesFromMap($this->assignment->getId());
-
-        if (isset($usr_ids)) {
-            foreach ($teams as $id => $team) {
-                if (count(array_intersect($team->getMembers(), array_keys($this->members))) > 0) {
-                    $this->teams[$id] = $team;
-                }
-            }
-        }
-        else {
-            $this->teams = $teams;
-        }
-    }
-
-    protected function writeMemberSheet() {
-        $this->addSheet('members');
-
-        $col = 0;
-        foreach ($this->member_titles as $title) {
-            $this->setCell(1, $col++, $title);
-        }
-
-        $row = 2;
-        foreach ($this->members as $member) {
-            $col = 0;
-            $this->setCell($row, $col++, 0, DataType::TYPE_NUMERIC);
-            $this->setCell($row, $col++, $member['usr_id'], DataType::TYPE_NUMERIC);
-            $this->setCell($row, $col++, $member['login'], DataType::TYPE_STRING);
-            $this->setCell($row, $col++, $member['lastname'], DataType::TYPE_STRING);
-            $this->setCell($row, $col++, $member['firstname'], DataType::TYPE_STRING);
-            $this->setCell($row, $col++, $member['status'], DataType::TYPE_STRING);
-            $this->setCell($row, $col++, $member['mark'], DataType::TYPE_STRING);
-            $this->setCell($row, $col++, $member['notice'], DataType::TYPE_STRING);
-            $this->setCell($row, $col++, $member['comment'], DataType::TYPE_STRING);
-            $this->setCell($row, $col++, ($member['plag_flag'] == 'none' ? '' : $member['plag_flag']), DataType::TYPE_STRING);
-            $this->setCell($row, $col, $member['plag_comment'], DataType::TYPE_STRING);
-            $row++;
-        }
-    }
+}
 
     protected function loadMemberSheet() {
         $sheet = $this->getSheetAsArray();
@@ -357,5 +439,116 @@ class ilPluginExAssignmentStatusFile extends ilExcel
             );
         }
     }
+    protected function writeMemberSheet() {
+        try {
+            // Sheet erstellen oder aktivieren
+            if ($this->workbook->getSheetCount() == 0) {
+                $sheet = $this->workbook->createSheet();
+            } else {
+                $sheet = $this->workbook->getActiveSheet();
+            }
+            
+            $sheet->setTitle('members');
+            
+            $this->log->info("Plugin StatusFile: Writing member sheet with " . count($this->members) . " members");
+            
+            // Header-Zeile schreiben
+            $col = 1; // PhpSpreadsheet verwendet 1-basierte Indizes
+            foreach ($this->member_titles as $title) {
+                $sheet->setCellValue([$col, 1], $title);
+                $col++;
+            }
+            
+            // Datenzeilen schreiben
+            $row = 2;
+            foreach ($this->members as $member) {
+                $col = 1;
+                
+                // update (immer 0 für neue Dateien)
+                $sheet->setCellValue([$col, $row], 0);
+                $col++;
+                
+                // usr_id
+                $sheet->setCellValue([$col, $row], $member['usr_id']);
+                $col++;
+                
+                // login
+                $sheet->setCellValue([$col, $row], $member['login']);
+                $col++;
+                
+                // lastname
+                $sheet->setCellValue([$col, $row], $member['lastname']);
+                $col++;
+                
+                // firstname
+                $sheet->setCellValue([$col, $row], $member['firstname']);
+                $col++;
+                
+                // status
+                $sheet->setCellValue([$col, $row], $member['status']);
+                $col++;
+                
+                // mark
+                $sheet->setCellValue([$col, $row], $member['mark']);
+                $col++;
+                
+                // notice  
+                $sheet->setCellValue([$col, $row], $member['notice']);
+                $col++;
+                
+                // comment
+                $sheet->setCellValue([$col, $row], $member['comment']);
+                $col++;
+                
+                // plagiarism (leer wenn 'none')
+                $plag_display = ($member['plag_flag'] == 'none' ? '' : $member['plag_flag']);
+                $sheet->setCellValue([$col, $row], $plag_display);
+                $col++;
+                
+                // plag_comment
+                $sheet->setCellValue([$col, $row], $member['plag_comment']);
+                
+                $row++;
+            }
+            
+            $this->log->info("Plugin StatusFile: Successfully wrote member sheet with " . ($row - 2) . " data rows");
+            
+        } catch (Exception $e) {
+            $this->log->error("Plugin StatusFile: Error in writeMemberSheet: " . $e->getMessage());
+            throw $e;
+        }
+    }   
+
+    protected function initTeams() {
+        global $DIC;
+        $db = $DIC->database(); 
+        $exercise_obj_id = $this->assignment->getExerciseId();
+        #$assignment_id = $this->assignment->getId();               
+        // Mitglieder der Übung aus der Datenbank holen
+        $member_query = "SELECT usr_id FROM exc_members WHERE obj_id = " . $db->quote($exercise_obj_id, 'integer');
+        $member_result = $db->query($member_query);
+        
+        $all_member_ids = [];
+        while ($row = $db->fetchAssoc($member_result)) {
+            $all_member_ids[] = (int)$row['usr_id'];
+        }     
+
+        $teams = ilExAssignmentTeam::getInstancesFromMap($this->assignment->getId());
+        $this->teams = [];
+        
+        if (isset($usr_ids)) {
+            foreach ($teams as $team_id => $team) {
+                // Prüfen ob mindestens ein Team-Mitglied in der User-Liste ist
+                if (count(array_intersect($team->getMembers(), $usr_ids)) > 0) {
+                    $this->teams[$team_id] = $team;
+                }
+            }
+        } else {
+            $this->teams = $teams;
+        }
+        
+        $this->log->info("Plugin StatusFile: Initialized " . count($this->teams) . " teams");
+    }    
+
 }
 ?>
