@@ -33,7 +33,7 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
         $logger = $DIC->logger()->root();
         
         if (!isset($a_par['assignment']) || !isset($a_par['members']) || !isset($a_par['zip'])) {
-            $logger->warning("Missing parameters for feedback download");
+            $logger->warning("Plugin StatusFile: Missing parameters for feedback download");
             return;
         }
 
@@ -41,9 +41,18 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
             $assignment = $a_par['assignment'];
             $members = $a_par['members'];
             $zip = &$a_par['zip'];
+            
+            $logger->info("Plugin StatusFile: Before adding status files - ZIP has " . $zip->numFiles . " files");
+            
             $this->addStatusFilesToZip($zip, $assignment, $members);
+            
+            $logger->info("Plugin StatusFile: After adding status files - ZIP has " . $zip->numFiles . " files");
+            
+            // Debug ZIP-Inhalte
+            $this->debugZipContents($zip);
+            
         } catch (Exception $e) {
-            $logger->error("Error adding status files to ZIP: " . $e->getMessage());
+            $logger->error("Plugin StatusFile: Error adding status files to ZIP: " . $e->getMessage());
         }
     }
 
@@ -380,6 +389,12 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
         try {
             $user_ids = is_array($members) ? array_keys($members) : $members;
             
+            // Base-Name berechnen (wie im TutorFeedbackZipManager)
+            $base_name = trim(str_replace(" ", "_", $assignment->getTitle() . "_" . $assignment->getId()));
+            $base_name = "multi_feedback_" . $this->toAscii($base_name);
+            
+            $logger->info("Plugin StatusFile: Using base name: $base_name");
+            
             // XLSX Status File
             $status_file = new ilPluginExAssignmentStatusFile();
             $status_file->init($assignment);
@@ -387,9 +402,13 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
             $xlsx_path = $tmp_dir . '/status.xlsx';
             $status_file->writeToFile($xlsx_path);
             
-            if ($status_file->isWriteToFileSuccess()) {
+            if ($status_file->isWriteToFileSuccess() && file_exists($xlsx_path)) {
+                // Status-Datei im ROOT des ZIP (nicht im base_name Ordner)
                 $zip->addFile($xlsx_path, "status.xlsx");
-                $logger->info("Added status.xlsx to ZIP");
+                $logger->info("Added status.xlsx to ZIP root");
+                $logger->info("File size: " . filesize($xlsx_path) . " bytes");
+            } else {
+                $logger->error("Failed to create or find XLSX file: $xlsx_path");
             }
             
             // CSV Status File
@@ -399,14 +418,67 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
             $csv_path = $tmp_dir . '/status.csv';
             $csv_status_file->writeToFile($csv_path);
             
-            if ($csv_status_file->isWriteToFileSuccess()) {
+            if ($csv_status_file->isWriteToFileSuccess() && file_exists($csv_path)) {
+                // Status-Datei im ROOT des ZIP (nicht im base_name Ordner)
                 $zip->addFile($csv_path, "status.csv");
-                $logger->info("Added status.csv to ZIP");
+                $logger->info("Added status.csv to ZIP root");
+                $logger->info("File size: " . filesize($csv_path) . " bytes");
+            } else {
+                $logger->error("Failed to create or find CSV file: $csv_path");
             }
             
-        } finally {
-            $_SESSION['plugin_temp_cleanup'][] = $tmp_dir;
+            $logger->info("Plugin StatusFile: Successfully completed addStatusFilesToZip");
+            
+        } catch (Exception $e) {
+            $logger->error("Plugin StatusFile: Error in addStatusFilesToZip: " . $e->getMessage());
+            // Bei Fehler: Sofort aufräumen
+            $this->cleanupTempDir($tmp_dir);
+            throw $e;
         }
+        
+        // WICHTIG: Cleanup erst NACH dem ZIP->close() 
+        // Verwende register_shutdown_function für sicheres Cleanup
+        $this->registerShutdownCleanup($tmp_dir);
+    }
+
+    /**
+     * ASCII-Konvertierung wie im TutorFeedbackZipManager
+     */
+    protected function toAscii(string $filename): string
+    {
+        global $DIC;
+        return (new \ilFileServicesPolicy($DIC->fileServiceSettings()))->ascii($filename);
+    }
+
+    /**
+     * Zusätzliche Debug-Funktion für ZIP-Inhalte
+     */
+    protected function debugZipContents(\ZipArchive $zip): void
+    {
+        global $DIC;
+        $logger = $DIC->logger()->root();
+        
+        $logger->info("Plugin StatusFile: ZIP Debug - Number of files: " . $zip->numFiles);
+        
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $stat = $zip->statIndex($i);
+            if ($stat) {
+                $logger->info("Plugin StatusFile: ZIP file $i: " . 
+                    $stat['name'] . " (size: " . $stat['size'] . " bytes)");
+            }
+        }
+    }
+
+    /**
+     * Sicheres Cleanup über register_shutdown_function
+     */
+    protected function registerShutdownCleanup(string $tmp_dir): void
+    {
+        register_shutdown_function(function() use ($tmp_dir) {
+            if (is_dir($tmp_dir)) {
+                $this->cleanupTempDir($tmp_dir);
+            }
+        });
     }
 
     protected function cleanupTempDir(string $tmp_dir): void
@@ -433,5 +505,4 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
             unset($_SESSION['plugin_temp_cleanup']);
         }
     }
-
 }
