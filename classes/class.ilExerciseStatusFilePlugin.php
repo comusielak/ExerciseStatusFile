@@ -21,11 +21,11 @@ class ilExerciseStatusFilePlugin extends ilUserInterfaceHookPlugin
         parent::init();
     }
 
+// ENTFERNE die ModifyGUI Methoden und verwende nur:
     public function getUIClassInstance(): ilExerciseStatusFileUIHookGUI
     {
         return new ilExerciseStatusFileUIHookGUI($this);
     }
-
     public function isActive(): bool
     {
         return parent::isActive();
@@ -37,5 +37,6 @@ class ilExerciseStatusFilePlugin extends ilUserInterfaceHookPlugin
                class_exists('ilExcel') &&
                class_exists('ilExAssignmentMemberStatus');
     }
+
+
 }
-?>

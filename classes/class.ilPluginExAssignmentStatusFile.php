@@ -519,36 +519,82 @@ protected function initMembers() {
         }
     }   
 
-    protected function initTeams() {
-        global $DIC;
-        $db = $DIC->database(); 
-        $exercise_obj_id = $this->assignment->getExerciseId();
-        #$assignment_id = $this->assignment->getId();               
-        // Mitglieder der Übung aus der Datenbank holen
-        $member_query = "SELECT usr_id FROM exc_members WHERE obj_id = " . $db->quote($exercise_obj_id, 'integer');
-        $member_result = $db->query($member_query);
+protected function initTeams() {
+    global $DIC;
+    $db = $DIC->database();
+    
+    try {
+        $assignment_id = $this->assignment->getId();
         
-        $all_member_ids = [];
-        while ($row = $db->fetchAssoc($member_result)) {
-            $all_member_ids[] = (int)$row['usr_id'];
-        }     
-
-        $teams = ilExAssignmentTeam::getInstancesFromMap($this->assignment->getId());
-        $this->teams = [];
+        $this->log->info("Plugin StatusFile: Initializing teams for assignment_id: $assignment_id");
         
-        if (isset($usr_ids)) {
-            foreach ($teams as $team_id => $team) {
-                // Prüfen ob mindestens ein Team-Mitglied in der User-Liste ist
-                if (count(array_intersect($team->getMembers(), $usr_ids)) > 0) {
-                    $this->teams[$team_id] = $team;
-                }
-            }
-        } else {
-            $this->teams = $teams;
+        // Teams direkt über ILIAS-API holen
+        $teams = ilExAssignmentTeam::getInstancesFromMap($assignment_id);
+        $this->log->info("Plugin StatusFile: Found " . count($teams) . " teams");
+        
+        if (empty($teams)) {
+            $this->teams = [];
+            return;
         }
         
-        $this->log->info("Plugin StatusFile: Initialized " . count($this->teams) . " teams");
-    }    
-
+        $this->teams = [];
+        
+        foreach ($teams as $team_id => $team) {
+            // Team-Member-Daten sammeln
+            $member_logins = [];
+            $member_names = [];
+            $member_ids = $team->getMembers();
+            
+            foreach ($member_ids as $member_id) {
+                $user_data = \ilObjUser::_lookupName($member_id);
+                if ($user_data) {
+                    $member_logins[] = $user_data['login'];
+                    $member_names[] = $user_data['firstname'] . ' ' . $user_data['lastname'];
+                }
+            }
+            
+            // Team-Status ermitteln (vom ersten Team-Mitglied)
+            $first_member = reset($member_ids);
+            $member_status = $this->assignment->getMemberStatus($first_member);
+            
+            $status_string = 'notgraded';
+            if ($member_status) {
+                $status_obj = $member_status->getStatus();
+                if ($status_obj == 'passed') {
+                    $status_string = 'passed';
+                } elseif ($status_obj == 'failed') {
+                    $status_string = 'failed';
+                }
+            }
+            
+            $this->teams[$team_id] = [
+                'team_id' => $team_id,
+                'team_object' => $team,
+                'members' => $member_ids,
+                'logins' => implode(', ', $member_logins),
+                'member_names' => implode(', ', $member_names),
+                'status' => $status_string,
+                'mark' => $member_status ? $member_status->getMark() : '',
+                'notice' => $member_status ? $member_status->getNotice() : '',
+                'comment' => $member_status ? $member_status->getComment() : '',
+                'plag_flag' => 'none',
+                'plag_comment' => ''
+            ];
+            
+            $this->log->info("Plugin StatusFile: Added team $team_id: " . 
+                implode(', ', $member_logins) . ' - Status: ' . $status_string);
+        }
+        
+        $this->log->info("Plugin StatusFile: Successfully initialized " . count($this->teams) . " teams");
+        
+    } catch (Exception $e) {
+        $this->log->error("Plugin StatusFile: Error in initTeams: " . $e->getMessage());
+        $this->teams = [];
+    }
 }
-?>
+
+    public function getUpdates(): array
+    {
+        return $this->updates;
+    }
+}
