@@ -121,6 +121,8 @@ class ilExBatchDownloadHandler
      */
     private function addTeamSubmissionsFromArrays(\ZipArchive &$zip, \ilExAssignment $assignment, array $teams_data): void
     {
+        $this->logger->info("Plugin Batch: addTeamSubmissionsFromArrays called with " . count($teams_data) . " teams");
+
         $base_name = $this->toAscii("Batch_" . $assignment->getTitle() . "_" . $assignment->getId());
         
         foreach ($teams_data as $team_data) {
@@ -375,6 +377,9 @@ class ilExBatchDownloadHandler
      */
     private function generateBatchInfo(\ilExAssignment $assignment, array $teams): array
     {
+
+        $this->logger->info("Plugin Batch: generateBatchInfo called");
+
         return [
             'assignment' => [
                 'id' => $assignment->getId(),

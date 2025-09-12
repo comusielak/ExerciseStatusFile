@@ -2,13 +2,13 @@
 declare(strict_types=1);
 
 /**
- * Feedback Upload Handler - ZIP-Upload-Processing
+ * Feedback Upload Handler - ZIP-Upload-Processing mit Debug
  * 
  * Verarbeitet hochgeladene Feedback-ZIPs und wendet Status-Updates an
  * Unterstützt sowohl Individual- als auch Team-Assignments
  * 
  * @author Cornel Musielak
- * @version 1.1.0
+ * @version 1.1.0 - mit erweiterten Debug-Logs
  */
 class ilExFeedbackUploadHandler
 {
@@ -67,7 +67,7 @@ class ilExFeedbackUploadHandler
     }
     
     /**
-     * Team Assignment Upload Processing
+     * Team Assignment Upload Processing - MIT DEBUG
      */
     private function processTeamUpload(string $zip_content, int $assignment_id, int $tutor_id): void
     {
@@ -78,10 +78,26 @@ class ilExFeedbackUploadHandler
         
         try {
             $extracted_files = $this->extractZipContents($temp_zip, 'team_extract');
+            
+            // DEBUG: Zeige alle gefundenen Dateien
+            $this->logger->info("Plugin Upload: DEBUG - Extracted " . count($extracted_files) . " files:");
+            foreach ($extracted_files as $index => $file) {
+                $this->logger->info("Plugin Upload: DEBUG - File $index: '" . $file['original_name'] . "' (size: " . $file['size'] . " bytes)");
+            }
+            
             $status_files = $this->findStatusFiles($extracted_files);
             
+            // DEBUG: Zeige gefundene Status-Files
+            $this->logger->info("Plugin Upload: DEBUG - Found " . count($status_files) . " status files:");
+            foreach ($status_files as $index => $status_file_path) {
+                $this->logger->info("Plugin Upload: DEBUG - Status file $index: '$status_file_path'");
+            }
+            
             if (!empty($status_files)) {
+                $this->logger->info("Plugin Upload: Processing " . count($status_files) . " status files");
                 $this->processStatusFiles($status_files, $assignment_id, true);
+            } else {
+                $this->logger->warning("Plugin Upload: No status files found - looking for files matching: status.xlsx, status.csv, status.xls, batch_status.xlsx, batch_status.csv");
             }
             
             // Team-spezifische Feedback-Files verarbeiten
@@ -225,18 +241,23 @@ class ilExFeedbackUploadHandler
     }
     
     /**
-     * Findet Status-Files in extrahierten Dateien
+     * Findet Status-Files in extrahierten Dateien - MIT DEBUG
      */
     private function findStatusFiles(array $extracted_files): array
     {
         $status_files = [];
         
+        $this->logger->info("Plugin Upload: DEBUG - Searching for status files in " . count($extracted_files) . " extracted files");
+        
         foreach ($extracted_files as $file) {
             $basename = basename($file['original_name']);
+            $this->logger->info("Plugin Upload: DEBUG - Checking file: '" . $file['original_name'] . "' -> basename: '$basename'");
             
-            if (in_array($basename, ['status.xlsx', 'status.csv', 'status.xls'])) {
+            if (in_array($basename, ['status.xlsx', 'status.csv', 'status.xls', 'batch_status.xlsx', 'batch_status.csv'])) {
                 $status_files[] = $file['extracted_path'];
-                $this->logger->info("Plugin Upload: Found status file: " . $basename);
+                $this->logger->info("Plugin Upload: DEBUG - ✅ FOUND status file: " . $basename . " -> " . $file['extracted_path']);
+            } else {
+                $this->logger->info("Plugin Upload: DEBUG - ❌ Not a status file: $basename");
             }
         }
         
@@ -244,7 +265,7 @@ class ilExFeedbackUploadHandler
     }
     
     /**
-     * Verarbeitet Status-Files und wendet Updates an
+     * Verarbeitet Status-Files und wendet Updates an - MIT DEBUG
      */
     private function processStatusFiles(array $status_files, int $assignment_id, bool $is_team): void
     {
@@ -252,6 +273,8 @@ class ilExFeedbackUploadHandler
             $this->logger->info("Plugin Upload: No status files to process");
             return;
         }
+        
+        $this->logger->info("Plugin Upload: DEBUG - Starting to process " . count($status_files) . " status files for assignment $assignment_id (team: " . ($is_team ? 'yes' : 'no') . ")");
         
         try {
             $assignment = new \ilExAssignment($assignment_id);
@@ -261,39 +284,57 @@ class ilExFeedbackUploadHandler
             
             $updates_applied = false;
             
-            foreach ($status_files as $file_path) {
-                if (!file_exists($file_path)) continue;
+            foreach ($status_files as $index => $file_path) {
+                if (!file_exists($file_path)) {
+                    $this->logger->error("Plugin Upload: DEBUG - Status file does not exist: $file_path");
+                    continue;
+                }
+                
+                $file_size = filesize($file_path);
+                $this->logger->info("Plugin Upload: DEBUG - Processing status file $index: " . basename($file_path) . " (size: $file_size bytes, path: $file_path)");
                 
                 try {
-                    $this->logger->info("Plugin Upload: Processing status file: " . basename($file_path));
-                    
                     $status_file->loadFromFile($file_path);
                     
-                    if ($status_file->isLoadFromFileSuccess() && $status_file->hasUpdates()) {
-                        $status_file->applyStatusUpdates();
+                    if ($status_file->isLoadFromFileSuccess()) {
+                        $this->logger->info("Plugin Upload: DEBUG - ✅ Successfully loaded status file: " . basename($file_path));
                         
-                        // Success-Message setzen
-                        global $DIC;
-                        $DIC->ui()->mainTemplate()->setOnScreenMessage('success', $status_file->getInfo(), true);
-                        
-                        $updates_applied = true;
-                        $this->processing_stats['status_updates'] = count($status_file->getUpdates());
-                        
-                        $this->logger->info("Plugin Upload: Successfully applied status updates from " . basename($file_path));
-                        break; // Nur eine Status-Datei verarbeiten
+                        if ($status_file->hasUpdates()) {
+                            $updates_count = count($status_file->getUpdates());
+                            $this->logger->info("Plugin Upload: DEBUG - Found $updates_count updates in status file");
+                            
+                            $status_file->applyStatusUpdates();
+                            
+                            // Success-Message setzen
+                            global $DIC;
+                            $DIC->ui()->mainTemplate()->setOnScreenMessage('success', $status_file->getInfo(), true);
+                            
+                            $updates_applied = true;
+                            $this->processing_stats['status_updates'] = $updates_count;
+                            
+                            $this->logger->info("Plugin Upload: DEBUG - ✅ Successfully applied $updates_count status updates from " . basename($file_path));
+                            break; // Nur eine Status-Datei verarbeiten
+                        } else {
+                            $this->logger->warning("Plugin Upload: DEBUG - No updates found in status file: " . basename($file_path));
+                        }
+                    } else {
+                        $this->logger->error("Plugin Upload: DEBUG - ❌ Failed to load status file: " . basename($file_path));
+                        if ($status_file->hasError()) {
+                            $this->logger->error("Plugin Upload: DEBUG - Status file error: " . $status_file->getInfo());
+                        }
                     }
                     
                 } catch (Exception $e) {
-                    $this->logger->error("Plugin Upload: Error processing status file " . basename($file_path) . ": " . $e->getMessage());
+                    $this->logger->error("Plugin Upload: DEBUG - Exception processing status file " . basename($file_path) . ": " . $e->getMessage());
                 }
             }
             
             if (!$updates_applied) {
-                $this->logger->info("Plugin Upload: No status updates found or applied");
+                $this->logger->warning("Plugin Upload: DEBUG - No status updates were applied from any status file");
             }
             
         } catch (Exception $e) {
-            $this->logger->error("Plugin Upload: Error in status file processing: " . $e->getMessage());
+            $this->logger->error("Plugin Upload: DEBUG - Error in status file processing: " . $e->getMessage());
         }
     }
     

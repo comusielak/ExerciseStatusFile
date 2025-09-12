@@ -289,41 +289,54 @@ protected function initMembers() {
         }
     }
 
-    protected function writeTeamSheet() {
-        $this->addSheet('teams');
+protected function writeTeamSheet() {
+    $this->addSheet('teams');
+
+    $col = 0;
+    foreach ($this->team_titles as $title) {
+        $this->setCell(1, $col++, $title);
+    }
+
+    $row = 2;
+    foreach ($this->teams as $team_data) {
+        $logins = [];
+        $member = [];
+        
+        // Verwende die Member-IDs aus dem Array
+        foreach ($team_data['members'] as $usr_id) {
+            if (isset($this->members[$usr_id])) {
+                $logins[] = $this->members[$usr_id]['login'];
+                $member = $this->members[$usr_id]; // Letzter Member für Status-Daten
+            } else {
+                $logins[] = \ilObjUser::_lookupLogin($usr_id);
+            }
+        }
+
+        // Fallback auf Team-Daten wenn kein Member gefunden
+        if (empty($member)) {
+            $member = [
+                'status' => $team_data['status'],
+                'mark' => $team_data['mark'],
+                'notice' => $team_data['notice'],
+                'comment' => $team_data['comment'],
+                'plag_flag' => $team_data['plag_flag'],
+                'plag_comment' => $team_data['plag_comment']
+            ];
+        }
 
         $col = 0;
-        foreach ($this->team_titles as $title) {
-            $this->setCell(1, $col++, $title);
-        }
-
-        $row = 2;
-        foreach ($this->teams as $team) {
-            $logins = [];
-            $member = [];
-            foreach ($team->getMembers() as $usr_id) {
-                if (isset($this->members[$usr_id])) {
-                    $logins[] = $this->members[$usr_id]['login'];
-                    $member = $this->members[$usr_id];
-                }
-                else {
-                    $logins[] = \ilObjUser::_lookupLogin($usr_id);
-                }
-            }
-
-            $col = 0;
-            $this->setCell($row, $col++, 0, DataType::TYPE_NUMERIC);
-            $this->setCell($row, $col++, $team->getId(), DataType::TYPE_NUMERIC);
-            $this->setCell($row, $col++, implode(', ', $logins), DataType::TYPE_STRING);
-            $this->setCell($row, $col++, $member['status'], DataType::TYPE_STRING);
-            $this->setCell($row, $col++, $member['mark'], DataType::TYPE_STRING);
-            $this->setCell($row, $col++, $member['notice'], DataType::TYPE_STRING);
-            $this->setCell($row, $col++, $member['comment'], DataType::TYPE_STRING);
-            $this->setCell($row, $col++, ($member['plag_flag'] == 'none' ? '' : $member['plag_flag']), DataType::TYPE_STRING);
-            $this->setCell($row, $col, $member['plag_comment'], DataType::TYPE_STRING);
-            $row++;
-        }
+        $this->setCell($row, $col++, 0, DataType::TYPE_NUMERIC);
+        $this->setCell($row, $col++, $team_data['team_id'], DataType::TYPE_NUMERIC);
+        $this->setCell($row, $col++, implode(', ', $logins), DataType::TYPE_STRING);
+        $this->setCell($row, $col++, $member['status'], DataType::TYPE_STRING);
+        $this->setCell($row, $col++, $member['mark'], DataType::TYPE_STRING);
+        $this->setCell($row, $col++, $member['notice'], DataType::TYPE_STRING);
+        $this->setCell($row, $col++, $member['comment'], DataType::TYPE_STRING);
+        $this->setCell($row, $col++, ($member['plag_flag'] == 'none' ? '' : $member['plag_flag']), DataType::TYPE_STRING);
+        $this->setCell($row, $col, $member['plag_comment'], DataType::TYPE_STRING);
+        $row++;
     }
+}
 
     protected function loadTeamSheet() {
         $sheet = $this->getSheetAsArray();
@@ -371,7 +384,11 @@ protected function initMembers() {
             if (isset($data['usr_id'])) {
                 $user_ids = [$data['usr_id']];
             } elseif (isset($data['team_id'])) {
-                $user_ids = $this->teams[$data['team_id']]->getMembers();
+                // GEÄNDERT: Array-Zugriff statt Objekt-Methode
+                if (isset($this->teams[$data['team_id']])) {
+                    $team_data = $this->teams[$data['team_id']];
+                    $user_ids = $team_data['members']; // Array mit User-IDs
+                }
             }
 
             $this->log->info("Plugin StatusFile: Updating user IDs: " . implode(', ', $user_ids));

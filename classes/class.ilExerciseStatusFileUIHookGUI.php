@@ -17,13 +17,13 @@ require_once __DIR__ . '/Processing/class.ilExTeamDataProvider.php';
 require_once __DIR__ . '/Processing/class.ilExBatchDownloadHandler.php';
 
 /**
- * Exercise Status File UI Hook - PHASE 4 COMPLETE
+ * Exercise Status File UI Hook - PHASE 4 COMPLETE mit Upload/Download
  * 
  * Hauptklasse für UI-Integration mit vollständigem Team Multi-Feedback
- * Features: Robuste Detection, Refactored Architecture, Team Multi-Feedback
+ * Features: Robuste Detection, Refactored Architecture, Team Multi-Feedback, Upload/Download
  * 
  * @author Cornel Musielak
- * @version 1.1.0 - Phase 4 Complete
+ * @version 1.1.0 - Phase 4 Complete with Upload
  */
 class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
 {
@@ -67,10 +67,11 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
     }
 
     /**
-     * PHASE 4: MAIN UI MODIFICATION mit AJAX-Support
+     * PHASE 4: MAIN UI MODIFICATION mit AJAX-Support und Upload
      */
     public function modifyGUI(string $a_comp, string $a_part, array $a_par = []): void
     {
+        
         try {
             global $DIC;
             
@@ -106,13 +107,22 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
     }
     
     /**
-     * PHASE 4: AJAX-Requests verarbeiten
+     * PHASE 4: AJAX-Requests verarbeiten (GET und POST)
      */
     private function handleAJAXRequests(): bool
     {
-        // Prüfe ob es ein AJAX-Request ist
-        if (!isset($_SERVER['HTTP_X_REQUESTED_WITH']) || 
-            $_SERVER['HTTP_X_REQUESTED_WITH'] !== 'XMLHttpRequest') {
+        // Debug-Ausgabe
+        $this->logger->info("Plugin UI: Checking AJAX request - plugin_action: " . 
+                           ($_GET['plugin_action'] ?? $_POST['plugin_action'] ?? 'none'));
+        
+        // Prüfe AJAX-Requests
+        $is_ajax_get = isset($_SERVER['HTTP_X_REQUESTED_WITH']) && 
+                       $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest' &&
+                       $_SERVER['REQUEST_METHOD'] === 'GET';
+        
+        $is_ajax_post = isset($_POST['plugin_action']); // POST-Uploads sind immer für uns
+        
+        if (!$is_ajax_get && !$is_ajax_post) {
             return false;
         }
         
@@ -121,6 +131,10 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
         switch ($plugin_action) {
             case 'get_teams':
                 $this->handleGetTeamsRequest();
+                return true;
+                
+            case 'batch_upload':  // NEU: Upload-Handler
+                $this->handleBatchUploadRequest();
                 return true;
                 
             default:
@@ -163,17 +177,62 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
     }
     
     /**
-     * PHASE 4: Batch-Download-Commands verarbeiten
+     * NEU: Batch Upload Request Handler
      */
-    private function handleBatchDownloadCommands(): void
+    private function handleBatchUploadRequest(): void
     {
-        global $DIC;
-        
-        $ctrl = $DIC->ctrl();
-        $cmd = $ctrl->getCmd();
-        
-        if ($cmd === 'downloadTeamFeedback' && isset($_POST['plugin_action']) && $_POST['plugin_action'] === 'batch_download') {
-            $this->handleBatchDownloadRequest();
+        try {
+            $this->logger->info("Plugin UI: Batch upload request received");
+            
+            $assignment_id = $_POST['ass_id'] ?? null;
+            
+            if (!$assignment_id || !is_numeric($assignment_id)) {
+                throw new Exception("Invalid assignment ID: " . var_export($assignment_id, true));
+            }
+            
+            if (!isset($_FILES['zip_file']) || $_FILES['zip_file']['error'] !== UPLOAD_ERR_OK) {
+                $upload_error = $_FILES['zip_file']['error'] ?? 'unknown';
+                throw new Exception("No valid ZIP file uploaded. Upload error: " . $upload_error);
+            }
+            
+            $uploaded_file = $_FILES['zip_file'];
+            $this->logger->info("Plugin UI: Processing uploaded file: " . $uploaded_file['name'] . 
+                               " Size: " . $uploaded_file['size'] . " bytes");
+            
+            // Upload-Handler verwenden
+            $upload_handler = new ilExFeedbackUploadHandler();
+            $upload_handler->handleFeedbackUpload([
+                'assignment_id' => (int)$assignment_id,
+                'tutor_id' => $GLOBALS['DIC']->user()->getId(),
+                'zip_path' => $uploaded_file['tmp_name']
+            ]);
+            
+            $this->logger->info("Plugin UI: Upload processing completed successfully");
+            
+            // Success Response
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'success' => true,
+                'message' => 'Batch-Upload erfolgreich verarbeitet',
+                'file' => $uploaded_file['name'],
+                'size' => $uploaded_file['size']
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+            
+        } catch (Exception $e) {
+            $this->logger->error("Plugin UI: Batch upload error: " . $e->getMessage());
+            $this->logger->error("Plugin UI: Stack trace: " . $e->getTraceAsString());
+            
+            // Error Response
+            header('Content-Type: application/json; charset=utf-8');
+            header('HTTP/1.1 500 Internal Server Error');
+            
+            echo json_encode([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'details' => 'Siehe ILIAS-Log für weitere Details'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
         }
     }
     
@@ -246,8 +305,8 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
             $this->logger->info("Plugin UI: Rendered PHASE 4 TEAM button for assignment $assignment_id");
         } else {
             // INDIVIDUAL ASSIGNMENT -> Info-Box
-            $renderer->renderNonTeamInfo($assignment_id);
-            $this->logger->info("Plugin UI: Rendered NON-TEAM info for assignment $assignment_id");
+            #$renderer->renderNonTeamInfo($assignment_id);
+            #$this->logger->info("Plugin UI: Rendered NON-TEAM info for assignment $assignment_id");
         }
     }
     
@@ -325,10 +384,11 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
     {
         $status = [
             'version' => '1.1.0',
-            'phase' => '4 - Complete Team Multi-Feedback',
+            'phase' => '4 - Complete Team Multi-Feedback with Upload',
             'features' => [
                 'assignment_detection' => 'Enhanced Multi-Strategy',
                 'team_multi_feedback' => 'Full AJAX + Batch Download',
+                'batch_upload' => 'ZIP Upload with Status Processing',
                 'ui_rendering' => 'Modular Button Renderer',
                 'download_processing' => 'Team + Individual Support',
                 'upload_processing' => 'Status File Import/Export'
