@@ -2,10 +2,10 @@
 declare(strict_types=1);
 
 /**
- * Feedback Download Handler - ZIP-Download-Processing
+ * Feedback Download Handler
  * 
  * Verarbeitet Feedback-Downloads und fügt Status-Files hinzu
- * Unterstützt sowohl Individual- als auch Team-Assignments
+ * Unterstützt Individual- und Team-Assignments
  * 
  * @author Cornel Musielak
  * @version 1.1.0
@@ -20,17 +20,16 @@ class ilExFeedbackDownloadHandler
         global $DIC;
         $this->logger = $DIC->logger()->root();
         
-        // Cleanup bei Script-Ende registrieren
         register_shutdown_function([$this, 'cleanupAllTempDirectories']);
     }
     
     /**
-     * MAIN HANDLER: Feedback Download Processing
+     * Feedback Download Processing
      */
     public function handleFeedbackDownload(array $parameters): void
     {
         if (!$this->validateDownloadParameters($parameters)) {
-            $this->logger->warning("Plugin Download: Invalid parameters provided");
+            $this->logger->warning("Invalid download parameters provided");
             return;
         }
         
@@ -39,8 +38,6 @@ class ilExFeedbackDownloadHandler
             $members = $parameters['members'];
             $zip = &$parameters['zip'];
             
-            $this->logger->info("Plugin Download: Processing feedback download - ZIP has " . $zip->numFiles . " files");
-            
             // Team vs Individual Processing
             if ($assignment->getAssignmentType()->usesTeams()) {
                 $this->processTeamDownload($zip, $assignment, $members);
@@ -48,10 +45,8 @@ class ilExFeedbackDownloadHandler
                 $this->processIndividualDownload($zip, $assignment, $members);
             }
             
-            $this->logger->info("Plugin Download: Completed - ZIP now has " . $zip->numFiles . " files");
-            
         } catch (Exception $e) {
-            $this->logger->error("Plugin Download: Error processing download: " . $e->getMessage());
+            $this->logger->error("Feedback download processing error: " . $e->getMessage());
         }
     }
     
@@ -60,15 +55,13 @@ class ilExFeedbackDownloadHandler
      */
     private function processTeamDownload(\ZipArchive &$zip, \ilExAssignment $assignment, array $members): void
     {
-        $this->logger->info("Plugin Download: Processing team assignment download");
-        
-        // 1. Status-Files hinzufügen
+        // Status-Files hinzufügen
         $this->addStatusFilesToZip($zip, $assignment, $members, true);
         
-        // 2. Team-Struktur erstellen
+        // Team-Struktur erstellen
         $this->createTeamStructureInZip($zip, $assignment);
         
-        // 3. Team-README hinzufügen
+        // Team-README hinzufügen
         $this->addTeamReadmeToZip($zip, $assignment);
     }
     
@@ -77,8 +70,6 @@ class ilExFeedbackDownloadHandler
      */
     private function processIndividualDownload(\ZipArchive &$zip, \ilExAssignment $assignment, array $members): void
     {
-        $this->logger->info("Plugin Download: Processing individual assignment download");
-        
         // Status-Files hinzufügen
         $this->addStatusFilesToZip($zip, $assignment, $members, false);
     }
@@ -95,14 +86,12 @@ class ilExFeedbackDownloadHandler
             $xlsx_success = $this->createStatusFile($assignment, $temp_dir, 'xlsx');
             if ($xlsx_success) {
                 $zip->addFile($temp_dir . '/status.xlsx', "status.xlsx");
-                $this->logger->info("Plugin Download: Added status.xlsx");
             }
             
             // CSV Status File
             $csv_success = $this->createStatusFile($assignment, $temp_dir, 'csv');
             if ($csv_success) {
                 $zip->addFile($temp_dir . '/status.csv', "status.csv");
-                $this->logger->info("Plugin Download: Added status.csv");
             }
             
             // Team-spezifische zusätzliche Files
@@ -111,7 +100,7 @@ class ilExFeedbackDownloadHandler
             }
             
         } catch (Exception $e) {
-            $this->logger->error("Plugin Download: Error creating status files: " . $e->getMessage());
+            $this->logger->error("Error creating status files: " . $e->getMessage());
             throw $e;
         }
     }
@@ -132,15 +121,14 @@ class ilExFeedbackDownloadHandler
             $status_file->writeToFile($file_path);
             
             if ($status_file->isWriteToFileSuccess() && file_exists($file_path)) {
-                $this->logger->info("Plugin Download: Successfully created status.$format");
                 return true;
             }
             
-            $this->logger->warning("Plugin Download: Failed to create status.$format");
+            $this->logger->warning("Failed to create status.$format");
             return false;
             
         } catch (Exception $e) {
-            $this->logger->error("Plugin Download: Error creating status.$format: " . $e->getMessage());
+            $this->logger->error("Error creating status.$format: " . $e->getMessage());
             return false;
         }
     }
@@ -153,8 +141,6 @@ class ilExFeedbackDownloadHandler
         try {
             $base_name = $this->generateBaseName($assignment);
             $teams = ilExAssignmentTeam::getInstancesFromMap($assignment->getId());
-            
-            $this->logger->info("Plugin Download: Creating team structure for " . count($teams) . " teams");
             
             foreach ($teams as $team_id => $team) {
                 $team_path = $base_name . "/Team_" . $team_id;
@@ -174,7 +160,7 @@ class ilExFeedbackDownloadHandler
             }
             
         } catch (Exception $e) {
-            $this->logger->error("Plugin Download: Error creating team structure: " . $e->getMessage());
+            $this->logger->error("Error creating team structure: " . $e->getMessage());
         }
     }
     
@@ -196,10 +182,8 @@ class ilExFeedbackDownloadHandler
             file_put_contents($mapping_path, json_encode($team_mapping, JSON_PRETTY_PRINT));
             $zip->addFile($mapping_path, "team_mapping.json");
             
-            $this->logger->info("Plugin Download: Added team-specific files");
-            
         } catch (Exception $e) {
-            $this->logger->error("Plugin Download: Error creating team-specific files: " . $e->getMessage());
+            $this->logger->error("Error creating team-specific files: " . $e->getMessage());
         }
     }
     
@@ -214,8 +198,6 @@ class ilExFeedbackDownloadHandler
         
         file_put_contents($readme_path, $readme_content);
         $zip->addFile($readme_path, "README_TEAMS.md");
-        
-        $this->logger->info("Plugin Download: Added team README");
     }
     
     /**
@@ -232,7 +214,7 @@ class ilExFeedbackDownloadHandler
     }
     
     /**
-     * UTILITY: Basis-Name für ZIP-Struktur generieren
+     * Basis-Name für ZIP-Struktur generieren
      */
     private function generateBaseName(\ilExAssignment $assignment): string
     {
@@ -244,7 +226,7 @@ class ilExFeedbackDownloadHandler
     }
     
     /**
-     * UTILITY: User-Directory-Name generieren
+     * User-Directory-Name generieren
      */
     private function generateUserDirectory(int $user_id): ?string
     {
@@ -256,12 +238,11 @@ class ilExFeedbackDownloadHandler
                    $user_data["login"] . "_" . 
                    $user_id;
         
-        // ASCII-konform machen
         return $this->toAscii($dir_name);
     }
     
     /**
-     * UTILITY: Team-Overview generieren
+     * Team-Overview generieren
      */
     private function generateTeamOverview(\ilExAssignment $assignment): string
     {
@@ -282,7 +263,7 @@ class ilExFeedbackDownloadHandler
     }
     
     /**
-     * UTILITY: Team-Mapping generieren
+     * Team-Mapping generieren
      */
     private function generateTeamMapping(\ilExAssignment $assignment): array
     {
@@ -310,7 +291,7 @@ class ilExFeedbackDownloadHandler
     }
     
     /**
-     * UTILITY: Team-README generieren
+     * Team-README generieren
      */
     private function generateTeamReadme(\ilExAssignment $assignment): string
     {
@@ -332,7 +313,7 @@ class ilExFeedbackDownloadHandler
     }
     
     /**
-     * UTILITY: Team-Info generieren
+     * Team-Info generieren
      */
     private function generateTeamInfo(ilExAssignmentTeam $team): string
     {
@@ -348,7 +329,7 @@ class ilExFeedbackDownloadHandler
     }
     
     /**
-     * UTILITY: Parameter-Validierung
+     * Parameter-Validierung
      */
     private function validateDownloadParameters(array $parameters): bool
     {
@@ -361,7 +342,7 @@ class ilExFeedbackDownloadHandler
     }
     
     /**
-     * UTILITY: Temp-Directory erstellen
+     * Temp-Directory erstellen
      */
     private function createTempDirectory(string $prefix): string
     {
@@ -373,7 +354,7 @@ class ilExFeedbackDownloadHandler
     }
     
     /**
-     * UTILITY: ASCII-Konvertierung
+     * ASCII-Konvertierung
      */
     private function toAscii(string $filename): string
     {
@@ -382,7 +363,7 @@ class ilExFeedbackDownloadHandler
     }
     
     /**
-     * CLEANUP: Alle Temp-Directories aufräumen
+     * Alle Temp-Directories aufräumen
      */
     public function cleanupAllTempDirectories(): void
     {
@@ -395,7 +376,7 @@ class ilExFeedbackDownloadHandler
     }
     
     /**
-     * CLEANUP: Einzelnes Temp-Directory aufräumen
+     * Einzelnes Temp-Directory aufräumen
      */
     private function cleanupTempDirectory(string $temp_dir): void
     {
@@ -410,7 +391,7 @@ class ilExFeedbackDownloadHandler
             }
             rmdir($temp_dir);
         } catch (Exception $e) {
-            $this->logger->warning("Plugin Download: Could not cleanup temp directory $temp_dir: " . $e->getMessage());
+            $this->logger->warning("Could not cleanup temp directory $temp_dir: " . $e->getMessage());
         }
     }
 }

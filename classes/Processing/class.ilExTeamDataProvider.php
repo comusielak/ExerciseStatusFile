@@ -2,13 +2,13 @@
 declare(strict_types=1);
 
 /**
- * Team Data Provider - SIMPLIFIED VERSION
+ * Team Data Provider
  * 
  * Stellt Team-Daten für AJAX-Requests bereit
- * SAFE: Verwendet nur stabile ILIAS-APIs
+ * Verwendet nur stabile ILIAS-APIs
  * 
  * @author Cornel Musielak
- * @version 1.1.0 - Simplified
+ * @version 1.1.0
  */
 class ilExTeamDataProvider
 {
@@ -23,59 +23,51 @@ class ilExTeamDataProvider
     }
     
     /**
-     * MAIN: Teams für Assignment laden (SIMPLIFIED)
+     * Teams für Assignment laden
      */
     public function getTeamsForAssignment(int $assignment_id): array
     {
-        $this->logger->info("Plugin TeamData: Loading teams for assignment $assignment_id (simplified)");
-        
         try {
-            // Assignment validieren
             $assignment = new \ilExAssignment($assignment_id);
             if (!$assignment->getAssignmentType()->usesTeams()) {
-                $this->logger->warning("Plugin TeamData: Assignment $assignment_id is not a team assignment");
                 return [];
             }
             
-            // Teams laden
             $teams = ilExAssignmentTeam::getInstancesFromMap($assignment_id);
             if (empty($teams)) {
-                $this->logger->info("Plugin TeamData: No teams found for assignment $assignment_id");
                 return [];
             }
             
             $teams_data = [];
             foreach ($teams as $team_id => $team) {
-                $team_data = $this->buildSimpleTeamData($team, $assignment);
+                $team_data = $this->buildTeamData($team, $assignment);
                 if ($team_data) {
                     $teams_data[] = $team_data;
                 }
             }
             
-            $this->logger->info("Plugin TeamData: Loaded " . count($teams_data) . " teams (simplified)");
             return $teams_data;
             
         } catch (Exception $e) {
-            $this->logger->error("Plugin TeamData: Error loading teams: " . $e->getMessage());
+            $this->logger->error("Team data provider error: " . $e->getMessage());
             return [];
         }
     }
     
     /**
-     * SIMPLIFIED: Team-Daten ohne problematische APIs
+     * Team-Daten erstellen
      */
-    private function buildSimpleTeamData(ilExAssignmentTeam $team, \ilExAssignment $assignment): ?array
+    private function buildTeamData(ilExAssignmentTeam $team, \ilExAssignment $assignment): ?array
     {
         try {
             $team_id = $team->getId();
             $member_ids = $team->getMembers();
             
             if (empty($member_ids)) {
-                $this->logger->warning("Plugin TeamData: Team $team_id has no members");
                 return null;
             }
             
-            // Team-Mitglieder laden (SAFE)
+            // Team-Mitglieder laden
             $members_data = [];
             foreach ($member_ids as $user_id) {
                 $member_data = $this->getMemberData($user_id);
@@ -85,12 +77,11 @@ class ilExTeamDataProvider
             }
             
             if (empty($members_data)) {
-                $this->logger->warning("Plugin TeamData: No valid members found for team $team_id");
                 return null;
             }
             
-            // Team-Status (SIMPLIFIED)
-            $team_status = $this->getSimpleTeamStatus($team, $assignment);
+            // Team-Status ermitteln
+            $team_status = $this->getTeamStatus($team, $assignment);
             
             return [
                 'team_id' => $team_id,
@@ -100,25 +91,24 @@ class ilExTeamDataProvider
                 'mark' => $team_status['mark'],
                 'notice' => $team_status['notice'],
                 'comment' => $team_status['comment'],
-                'last_submission' => null, // REMOVED: Problematic submission detection
-                'has_submissions' => false // SIMPLIFIED: Always false for now
+                'last_submission' => null,
+                'has_submissions' => false
             ];
             
         } catch (Exception $e) {
-            $this->logger->error("Plugin TeamData: Error building team data for team " . $team->getId() . ": " . $e->getMessage());
+            $this->logger->error("Error building team data for team " . $team->getId() . ": " . $e->getMessage());
             return null;
         }
     }
     
     /**
-     * SAFE: Mitglieder-Daten laden
+     * Mitglieder-Daten laden
      */
     private function getMemberData(int $user_id): ?array
     {
         try {
             $user_data = \ilObjUser::_lookupName($user_id);
             if (!$user_data || !$user_data['login']) {
-                $this->logger->warning("Plugin TeamData: Invalid user data for user $user_id");
                 return null;
             }
             
@@ -131,15 +121,15 @@ class ilExTeamDataProvider
             ];
             
         } catch (Exception $e) {
-            $this->logger->error("Plugin TeamData: Error loading member data for user $user_id: " . $e->getMessage());
+            $this->logger->error("Error loading member data for user $user_id: " . $e->getMessage());
             return null;
         }
     }
     
     /**
-     * SIMPLIFIED: Team-Status ohne problematische APIs
+     * Team-Status ermitteln
      */
-    private function getSimpleTeamStatus(ilExAssignmentTeam $team, \ilExAssignment $assignment): array
+    private function getTeamStatus(ilExAssignmentTeam $team, \ilExAssignment $assignment): array
     {
         try {
             // Status vom ersten Team-Mitglied nehmen
@@ -150,7 +140,6 @@ class ilExTeamDataProvider
             
             $first_member_id = reset($member_ids);
             
-            // SAFE: Member Status über Assignment
             try {
                 $member_status = $assignment->getMemberStatus($first_member_id);
                 
@@ -163,13 +152,13 @@ class ilExTeamDataProvider
                     ];
                 }
             } catch (Exception $e) {
-                $this->logger->debug("Plugin TeamData: Could not get member status: " . $e->getMessage());
+                // Fallback bei Problemen
             }
             
             return $this->getDefaultStatus();
             
         } catch (Exception $e) {
-            $this->logger->error("Plugin TeamData: Error getting team status: " . $e->getMessage());
+            $this->logger->error("Error getting team status: " . $e->getMessage());
             return $this->getDefaultStatus();
         }
     }
@@ -191,7 +180,7 @@ class ilExTeamDataProvider
     }
     
     /**
-     * Default Status
+     * Standard-Status
      */
     private function getDefaultStatus(): array
     {
@@ -211,19 +200,16 @@ class ilExTeamDataProvider
         try {
             $teams_data = $this->getTeamsForAssignment($assignment_id);
             
-            // HTTP-Headers für JSON
             header('Content-Type: application/json; charset=utf-8');
             header('Cache-Control: no-cache, must-revalidate');
             header('Expires: Sat, 26 Jul 1997 05:00:00 GMT');
             
-            // JSON-Response senden
             echo json_encode($teams_data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
             exit;
             
         } catch (Exception $e) {
-            $this->logger->error("Plugin TeamData: Error generating JSON response: " . $e->getMessage());
+            $this->logger->error("Error generating JSON response: " . $e->getMessage());
             
-            // Error-Response
             header('Content-Type: application/json; charset=utf-8');
             header('HTTP/1.1 500 Internal Server Error');
             
@@ -237,7 +223,7 @@ class ilExTeamDataProvider
     }
     
     /**
-     * Debug: Team-Daten als Array zurückgeben
+     * Team-Daten für Debugging
      */
     public function getTeamsDebugInfo(int $assignment_id): array
     {
@@ -246,7 +232,7 @@ class ilExTeamDataProvider
             'teams_count' => count($this->getTeamsForAssignment($assignment_id)),
             'teams_data' => $this->getTeamsForAssignment($assignment_id),
             'timestamp' => date('Y-m-d H:i:s'),
-            'version' => 'simplified'
+            'version' => '1.1.0'
         ];
     }
 }

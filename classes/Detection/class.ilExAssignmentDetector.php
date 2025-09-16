@@ -2,13 +2,12 @@
 declare(strict_types=1);
 
 /**
- * Assignment Detection Engine - WORKING SIMPLE VERSION
+ * Assignment Detection Engine
  * 
- * Basiert auf der funktionierenden Phase 1 Logic, aber als separate Klasse
- * Fokus: FUNKTIONIERT und findet Assignment-IDs zuverlässig
+ * Ermittelt die Assignment-ID aus verschiedenen Quellen
  * 
  * @author Cornel Musielak
- * @version 1.1.0 - Working Simple
+ * @version 1.1.0
  */
 class ilExAssignmentDetector
 {
@@ -23,45 +22,38 @@ class ilExAssignmentDetector
     }
     
     /**
-     * MAIN DETECTION - Basiert auf funktionierender Phase 1 Logic
+     * Hauptmethode: Assignment-ID ermitteln
      */
     public function detectAssignmentId(): ?int
     {
-        $this->logger->info("Plugin Detector: Starting SIMPLE working detection");
-        
-        // 1. DIREKTE Parameter (funktioniert immer)
+        // 1. Direkte Parameter
         $direct_result = $this->detectFromDirectParams();
         if ($direct_result) {
-            $this->logger->info("Plugin Detector: Found via direct params: $direct_result");
             return $direct_result;
         }
         
-        // 2. SESSION (aus Phase 1 - funktioniert)
+        // 2. Session
         $session_result = $this->detectFromSession();
         if ($session_result) {
-            $this->logger->info("Plugin Detector: Found via session: $session_result");
             return $session_result;
         }
         
-        // 3. EXERCISE CONTEXT (aus Phase 1 - funktioniert)
+        // 3. Exercise Context
         $exercise_result = $this->detectFromExerciseContext();
         if ($exercise_result) {
-            $this->logger->info("Plugin Detector: Found via exercise context: $exercise_result");
             return $exercise_result;
         }
         
-        $this->logger->warning("Plugin Detector: No assignment ID found");
         return null;
     }
     
     /**
-     * Direct Parameters - PHASE 1 VERSION (funktioniert)
+     * Detection über direkte Parameter
      */
     private function detectFromDirectParams(): ?int
     {
         global $DIC;
         
-        // Standard GET/POST Parameter
         $sources = [
             $_GET['ass_id'] ?? null,
             $_POST['ass_id'] ?? null,
@@ -79,14 +71,13 @@ class ilExAssignmentDetector
     }
     
     /**
-     * Session Detection - PHASE 1 VERSION (funktioniert)
+     * Detection über Session
      */
     private function detectFromSession(): ?int
     {
         try {
             $session_data = $_SESSION ?? [];
             
-            // Standard Session-Keys
             $possible_keys = [
                 'exc_assignment',
                 'current_assignment', 
@@ -115,13 +106,13 @@ class ilExAssignmentDetector
             return null;
             
         } catch (Exception $e) {
-            $this->logger->error("Plugin Detector: Session error: " . $e->getMessage());
+            $this->logger->error("Assignment detection session error: " . $e->getMessage());
             return null;
         }
     }
     
     /**
-     * Exercise Context - PHASE 1 VERSION (funktioniert)
+     * Detection über Exercise Context
      */
     private function detectFromExerciseContext(): ?int
     {
@@ -133,26 +124,24 @@ class ilExAssignmentDetector
         }
         
         try {
-            // Exercise Objekt laden
             $obj = \ilObjectFactory::getInstanceByRefId((int)$ref_id);
             if (!$obj || !($obj instanceof \ilObjExercise)) {
                 return null;
             }
             
-            // Alle Assignments holen
             $assignments = \ilExAssignment::getInstancesByExercise($obj->getId());
             if (empty($assignments)) {
                 return null;
             }
             
-            // Wenn nur ein Assignment -> nehmen
+            // Nur ein Assignment -> nehmen
             if (count($assignments) === 1) {
                 return array_values($assignments)[0]->getId();
             }
             
             // Team-Assignment bevorzugen
             foreach ($assignments as $assignment) {
-                if ($assignment->getType() == 4) { // Team Assignment
+                if ($assignment->getType() == 4) {
                     return $assignment->getId();
                 }
             }
@@ -161,26 +150,26 @@ class ilExAssignmentDetector
             return array_values($assignments)[0]->getId();
             
         } catch (Exception $e) {
-            $this->logger->error("Plugin Detector: Exercise context error: " . $e->getMessage());
+            $this->logger->error("Assignment detection context error: " . $e->getMessage());
             return null;
         }
     }
     
     /**
-     * Simple cache clear
+     * Cache leeren
      */
     public function clearCache(): void
     {
-        // Für Kompatibilität - aktuell kein Cache
+        // Für Kompatibilität
     }
     
     /**
-     * Simple stats
+     * Detection-Statistiken
      */
     public function getDetectionStats(): array
     {
         return [
-            'version' => 'simple_working',
+            'version' => 'working',
             'cmd_class' => $this->ctrl->getCmdClass(),
             'cmd' => $this->ctrl->getCmd()
         ];

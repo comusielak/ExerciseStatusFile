@@ -2,15 +2,14 @@
 declare(strict_types=1);
 
 /**
- * Batch Download Handler - Phase 4
+ * Multi-Feedback Download Handler
  * 
  * Verarbeitet Multi-Team-Downloads und generiert strukturierte ZIPs
- * Erweitert die normale Download-Funktionalität um Batch-Processing
  * 
  * @author Cornel Musielak
- * @version 1.1.0 - Phase 4
+ * @version 1.1.0
  */
-class ilExBatchDownloadHandler
+class ilExMultiFeedbackDownloadHandler
 {
     private ilLogger $logger;
     private array $temp_directories = [];
@@ -22,19 +21,15 @@ class ilExBatchDownloadHandler
         $this->logger = $DIC->logger()->root();
         $this->team_provider = new ilExTeamDataProvider();
         
-        // Cleanup bei Script-Ende registrieren
         register_shutdown_function([$this, 'cleanupAllTempDirectories']);
     }
     
     /**
-     * MAIN: Batch-Download für ausgewählte Teams generieren
+     * Multi-Feedback-Download für ausgewählte Teams generieren
      */
-    public function generateBatchDownload(int $assignment_id, array $team_ids): void
+    public function generateMultiFeedbackDownload(int $assignment_id, array $team_ids): void
     {
-        $this->logger->info("Plugin Batch: Starting batch download for assignment $assignment_id, teams: " . implode(',', $team_ids));
-        
         try {
-            // Assignment und Teams validieren
             $assignment = new \ilExAssignment($assignment_id);
             if (!$assignment->getAssignmentType()->usesTeams()) {
                 throw new Exception("Assignment $assignment_id is not a team assignment");
@@ -42,23 +37,20 @@ class ilExBatchDownloadHandler
             
             $validated_teams = $this->validateTeams($assignment_id, $team_ids);
             if (empty($validated_teams)) {
-                throw new Exception("No valid teams found for batch download");
+                throw new Exception("No valid teams found");
             }
             
-            // Batch-ZIP erstellen
-            $zip_path = $this->createBatchZIP($assignment, $validated_teams);
-            
-            // Download senden
+            $zip_path = $this->createMultiFeedbackZIP($assignment, $validated_teams);
             $this->sendZIPDownload($zip_path, $assignment, $validated_teams);
             
         } catch (Exception $e) {
-            $this->logger->error("Plugin Batch: Error in batch download: " . $e->getMessage());
+            $this->logger->error("Multi-Feedback download error: " . $e->getMessage());
             $this->sendErrorResponse($e->getMessage());
         }
     }
     
     /**
-     * Teams validieren und Daten laden
+     * Teams validieren
      */
     private function validateTeams(int $assignment_id, array $team_ids): array
     {
@@ -74,17 +66,16 @@ class ilExBatchDownloadHandler
             }
         }
         
-        $this->logger->info("Plugin Batch: Validated " . count($validated_teams) . " teams out of " . count($team_ids) . " requested");
         return $validated_teams;
     }
     
     /**
-     * Batch-ZIP erstellen
+     * Multi-Feedback ZIP erstellen
      */
-    private function createBatchZIP(\ilExAssignment $assignment, array $teams): string
+    private function createMultiFeedbackZIP(\ilExAssignment $assignment, array $teams): string
     {
-        $temp_dir = $this->createTempDirectory('batch_download');
-        $zip_filename = $this->generateBatchZIPFilename($assignment, $teams);
+        $temp_dir = $this->createTempDirectory('multi_feedback');
+        $zip_filename = $this->generateZIPFilename($assignment, $teams);
         $zip_path = $temp_dir . '/' . $zip_filename;
         
         $zip = new \ZipArchive();
@@ -93,21 +84,12 @@ class ilExBatchDownloadHandler
         }
         
         try {
-            // 1. Status-Files hinzufügen
-            $this->addBatchStatusFiles($zip, $assignment, $teams, $temp_dir);
-            
-            // 2. Team-Struktur mit Submissions erstellen
+            $this->addStatusFiles($zip, $assignment, $teams, $temp_dir);
             $this->addTeamSubmissionsFromArrays($zip, $assignment, $teams);
-            
-            // 3. Batch-README hinzufügen
-            $this->addBatchReadme($zip, $assignment, $teams, $temp_dir);
-            
-            // 4. Team-Mapping und Metadaten
-            $this->addBatchMetadata($zip, $assignment, $teams, $temp_dir);
+            $this->addReadme($zip, $assignment, $teams, $temp_dir);
+            $this->addMetadata($zip, $assignment, $teams, $temp_dir);
             
             $zip->close();
-            
-            $this->logger->info("Plugin Batch: Created batch ZIP with " . $zip->numFiles . " files: $zip_path");
             return $zip_path;
             
         } catch (Exception $e) {
@@ -117,105 +99,60 @@ class ilExBatchDownloadHandler
     }
 
     /**
-     * Team-Submissions aus Array-Daten zu ZIP hinzufügen (statt Team-Objekten)
+     * Team-Submissions aus Array-Daten hinzufügen
      */
     private function addTeamSubmissionsFromArrays(\ZipArchive &$zip, \ilExAssignment $assignment, array $teams_data): void
     {
-        $this->logger->info("Plugin Batch: addTeamSubmissionsFromArrays called with " . count($teams_data) . " teams");
-
-        $base_name = $this->toAscii("Batch_" . $assignment->getTitle() . "_" . $assignment->getId());
+        $base_name = $this->toAscii("Multi_Feedback_" . $assignment->getTitle() . "_" . $assignment->getId());
         
         foreach ($teams_data as $team_data) {
             $team_id = $team_data['team_id'];
             $team_folder = $base_name . "/Team_" . $team_id;
             
-            // Team-Ordner erstellen
             $zip->addEmptyDir($team_folder);
-            
-            // Team-Info-File
             $this->addTeamInfoToZip($zip, $team_folder, $team_data);
             
-            // Submissions für jedes Team-Mitglied (aus Array-Daten)
             foreach ($team_data['members'] as $member_data) {
                 $user_id = $member_data['user_id'];
                 $user_folder = $team_folder . "/" . $this->generateUserFolderName($member_data);
                 
                 $zip->addEmptyDir($user_folder);
-                
-                // User-Submissions hinzufügen
                 $this->addUserSubmissionsToZip($zip, $user_folder, $assignment, $user_id);
             }
         }
-        
-        $this->logger->info("Plugin Batch: Added submissions for " . count($teams_data) . " teams from array data");
     }    
 
     /**
-     * Batch-Status-Files erstellen
+     * Status-Files erstellen
      */
-    private function addBatchStatusFiles(\ZipArchive &$zip, \ilExAssignment $assignment, array $teams, string $temp_dir): void
+    private function addStatusFiles(\ZipArchive &$zip, \ilExAssignment $assignment, array $teams, string $temp_dir): void
     {
-        // Standard Status-Files für alle Teams
         $status_file = new ilPluginExAssignmentStatusFile();
         $status_file->init($assignment);
         
         // XLSX
         $status_file->setFormat(ilPluginExAssignmentStatusFile::FORMAT_XML);
-        $xlsx_path = $temp_dir . '/batch_status.xlsx';
+        $xlsx_path = $temp_dir . '/status.xlsx';
         $status_file->writeToFile($xlsx_path);
         
         if ($status_file->isWriteToFileSuccess() && file_exists($xlsx_path)) {
-            $zip->addFile($xlsx_path, "batch_status.xlsx");
+            $zip->addFile($xlsx_path, "status.xlsx");
         }
         
         // CSV
         $status_file->setFormat(ilPluginExAssignmentStatusFile::FORMAT_CSV);
-        $csv_path = $temp_dir . '/batch_status.csv';
+        $csv_path = $temp_dir . '/status.csv';
         $status_file->writeToFile($csv_path);
         
         if ($status_file->isWriteToFileSuccess() && file_exists($csv_path)) {
-            $zip->addFile($csv_path, "batch_status.csv");
+            $zip->addFile($csv_path, "status.csv");
         }
         
-        // Team-spezifische Batch-Info
-        $batch_info = $this->generateBatchInfo($assignment, $teams);
-        $info_path = $temp_dir . '/batch_info.json';
-        file_put_contents($info_path, json_encode($batch_info, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-        $zip->addFile($info_path, "batch_info.json");
-        
-        $this->logger->info("Plugin Batch: Added batch status files");
-    }
-    
-    /**
-     * Team-Submissions zu ZIP hinzufügen
-     */
-    private function addTeamSubmissions(\ZipArchive &$zip, \ilExAssignment $assignment, array $teams): void
-    {
-        $base_name = $this->toAscii("Batch_" . $assignment->getTitle() . "_" . $assignment->getId());
-        
-        foreach ($teams as $team_data) {
-            $team_id = $team_data['team_id'];
-            $team_folder = $base_name . "/Team_" . $team_id;
-            
-            // Team-Ordner erstellen
-            $zip->addEmptyDir($team_folder);
-            
-            // Team-Info-File
-            $this->addTeamInfoToZip($zip, $team_folder, $team_data);
-            
-            // Submissions für jedes Team-Mitglied
-            foreach ($team_data['members'] as $member_data) {
-                $user_id = $member_data['user_id'];
-                $user_folder = $team_folder . "/" . $this->generateUserFolderName($member_data);
-                
-                $zip->addEmptyDir($user_folder);
-                
-                // User-Submissions hinzufügen
-                $this->addUserSubmissionsToZip($zip, $user_folder, $assignment, $user_id);
-            }
-        }
-        
-        $this->logger->info("Plugin Batch: Added submissions for " . count($teams) . " teams");
+        // Team-Info
+        $team_info = $this->generateTeamInfo($assignment, $teams);
+        $info_path = $temp_dir . '/team_info.json';
+        file_put_contents($info_path, json_encode($team_info, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        $zip->addFile($info_path, "team_info.json");
     }
     
     /**
@@ -242,7 +179,6 @@ class ilExBatchDownloadHandler
                 return;
             }
             
-            // Submission-Files holen
             $submitted_files = $submission->getFiles();
             foreach ($submitted_files as $file) {
                 if (isset($file['name']) && isset($file['full_path']) && file_exists($file['full_path'])) {
@@ -252,28 +188,28 @@ class ilExBatchDownloadHandler
             }
             
         } catch (Exception $e) {
-            $this->logger->warning("Plugin Batch: Could not add submissions for user $user_id: " . $e->getMessage());
+            // Ignoriere fehlende Submissions
         }
     }
     
     /**
-     * Batch-README erstellen
+     * README erstellen
      */
-    private function addBatchReadme(\ZipArchive &$zip, \ilExAssignment $assignment, array $teams, string $temp_dir): void
+    private function addReadme(\ZipArchive &$zip, \ilExAssignment $assignment, array $teams, string $temp_dir): void
     {
-        $readme_content = $this->generateBatchReadmeContent($assignment, $teams);
-        $readme_path = $temp_dir . '/README_BATCH.md';
+        $readme_content = $this->generateReadmeContent($assignment, $teams);
+        $readme_path = $temp_dir . '/README.md';
         
         file_put_contents($readme_path, $readme_content);
-        $zip->addFile($readme_path, "README_BATCH.md");
+        $zip->addFile($readme_path, "README.md");
     }
     
     /**
-     * Batch-Metadaten hinzufügen
+     * Metadaten hinzufügen
      */
-    private function addBatchMetadata(\ZipArchive &$zip, \ilExAssignment $assignment, array $teams, string $temp_dir): void
+    private function addMetadata(\ZipArchive &$zip, \ilExAssignment $assignment, array $teams, string $temp_dir): void
     {
-        // Team-Mapping für Import/Export
+        // Team-Mapping
         $team_mapping = [];
         foreach ($teams as $team_data) {
             $team_mapping['teams'][$team_data['team_id']] = [
@@ -288,11 +224,11 @@ class ilExBatchDownloadHandler
         file_put_contents($mapping_path, json_encode($team_mapping, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
         $zip->addFile($mapping_path, "team_mapping.json");
         
-        // Batch-Statistics
-        $stats = $this->generateBatchStatistics($assignment, $teams);
-        $stats_path = $temp_dir . '/batch_statistics.json';
+        // Statistiken
+        $stats = $this->generateStatistics($assignment, $teams);
+        $stats_path = $temp_dir . '/statistics.json';
         file_put_contents($stats_path, json_encode($stats, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-        $zip->addFile($stats_path, "batch_statistics.json");
+        $zip->addFile($stats_path, "statistics.json");
     }
     
     /**
@@ -307,17 +243,13 @@ class ilExBatchDownloadHandler
         $filename = $this->generateDownloadFilename($assignment, $teams);
         $filesize = filesize($zip_path);
         
-        // HTTP-Headers für Download
         header('Content-Type: application/zip');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         header('Content-Length: ' . $filesize);
         header('Cache-Control: no-cache, must-revalidate');
         header('Expires: Sat, 26 Jul 1997 05:00:00 GMT');
         
-        // ZIP-Inhalt senden
         readfile($zip_path);
-        
-        $this->logger->info("Plugin Batch: Download sent - file: $filename, size: $filesize bytes");
         exit;
     }
     
@@ -329,38 +261,37 @@ class ilExBatchDownloadHandler
         global $DIC;
         
         $tpl = $DIC->ui()->mainTemplate();
-        $tpl->setOnScreenMessage('failure', "Fehler beim Batch-Download: " . $message, true);
+        $tpl->setOnScreenMessage('failure', "Fehler beim Multi-Feedback-Download: " . $message, true);
         
-        // Redirect zurück zur Members-Seite
         $ctrl = $DIC->ctrl();
         $ctrl->redirect(null, 'members');
     }
     
     /**
-     * UTILITY: Batch-ZIP-Filename generieren
+     * ZIP-Filename generieren
      */
-    private function generateBatchZIPFilename(\ilExAssignment $assignment, array $teams): string
+    private function generateZIPFilename(\ilExAssignment $assignment, array $teams): string
     {
         $base_name = $this->toAscii($assignment->getTitle());
         $team_count = count($teams);
         $timestamp = date('Y-m-d_H-i-s');
         
-        return "Batch_{$base_name}_{$team_count}_Teams_{$timestamp}.zip";
+        return "Multi_Feedback_{$base_name}_{$team_count}_Teams_{$timestamp}.zip";
     }
     
     /**
-     * UTILITY: Download-Filename generieren
+     * Download-Filename generieren
      */
     private function generateDownloadFilename(\ilExAssignment $assignment, array $teams): string
     {
         $base_name = $this->toAscii($assignment->getTitle());
         $team_count = count($teams);
         
-        return "Batch_Feedback_{$base_name}_{$team_count}_Teams.zip";
+        return "Multi_Feedback_{$base_name}_{$team_count}_Teams.zip";
     }
     
     /**
-     * UTILITY: User-Folder-Name generieren
+     * User-Folder-Name generieren
      */
     private function generateUserFolderName(array $member_data): string
     {
@@ -373,20 +304,17 @@ class ilExBatchDownloadHandler
     }
     
     /**
-     * UTILITY: Batch-Info generieren
+     * Team-Info generieren
      */
-    private function generateBatchInfo(\ilExAssignment $assignment, array $teams): array
+    private function generateTeamInfo(\ilExAssignment $assignment, array $teams): array
     {
-
-        $this->logger->info("Plugin Batch: generateBatchInfo called");
-
         return [
             'assignment' => [
                 'id' => $assignment->getId(),
                 'title' => $assignment->getTitle(),
                 'type' => $assignment->getType()
             ],
-            'batch' => [
+            'multi_feedback' => [
                 'team_count' => count($teams),
                 'team_ids' => array_column($teams, 'team_id'),
                 'generated_at' => date('Y-m-d H:i:s'),
@@ -397,7 +325,7 @@ class ilExBatchDownloadHandler
     }
     
     /**
-     * UTILITY: Team-Info-Content generieren
+     * Team-Info-Content generieren
      */
     private function generateTeamInfoContent(array $team_data): string
     {
@@ -426,45 +354,45 @@ class ilExBatchDownloadHandler
     }
     
     /**
-     * UTILITY: Batch-README-Content generieren
+     * README-Content generieren
      */
-    private function generateBatchReadmeContent(\ilExAssignment $assignment, array $teams): string
+    private function generateReadmeContent(\ilExAssignment $assignment, array $teams): string
     {
         $team_count = count($teams);
         $team_ids = implode(', ', array_column($teams, 'team_id'));
         
-        return "# Batch Multi-Feedback - " . $assignment->getTitle() . "\n\n" .
-               "## Batch-Informationen\n\n" .
+        return "# Multi-Feedback - " . $assignment->getTitle() . "\n\n" .
+               "## Informationen\n\n" .
                "- **Assignment:** " . $assignment->getTitle() . " (ID: " . $assignment->getId() . ")\n" .
                "- **Teams:** $team_count ausgewählt (IDs: $team_ids)\n" .
                "- **Generiert:** " . date('Y-m-d H:i:s') . "\n" .
-               "- **Plugin:** ExerciseStatusFile v1.1.0 - Phase 4\n\n" .
+               "- **Plugin:** ExerciseStatusFile v1.1.0\n\n" .
                "## Struktur\n\n" .
                "```\n" .
-               "Batch_[Assignment]_[TeamCount]_Teams/\n" .
-               "├── batch_status.xlsx          # Status-File für alle Teams (Excel)\n" .
-               "├── batch_status.csv           # Status-File für alle Teams (CSV)\n" .
-               "├── batch_info.json            # Batch-Metadaten\n" .
-               "├── team_mapping.json          # Team-Mapping für Import\n" .
-               "├── batch_statistics.json      # Statistiken\n" .
-               "├── README_BATCH.md            # Diese Datei\n" .
+               "Multi_Feedback_[Assignment]_[TeamCount]_Teams/\n" .
+               "├── status.xlsx                # Status-File (Excel)\n" .
+               "├── status.csv                 # Status-File (CSV)\n" .
+               "├── team_info.json             # Team-Informationen\n" .
+               "├── team_mapping.json          # Team-Mapping\n" .
+               "├── statistics.json            # Statistiken\n" .
+               "├── README.md                  # Diese Datei\n" .
                "└── Team_[ID]/                 # Pro Team\n" .
                "    ├── team_info.txt          # Team-Informationen\n" .
                "    └── [Lastname_Firstname_Login_ID]/  # Pro Team-Mitglied\n" .
                "        └── [Submissions]      # Abgabe-Files\n" .
                "```\n\n" .
                "## Workflow\n\n" .
-               "1. **Status bearbeiten:** Öffne `batch_status.xlsx` oder `batch_status.csv`\n" .
+               "1. **Status bearbeiten:** Öffne `status.xlsx` oder `status.csv`\n" .
                "2. **Feedback hinzufügen:** Lege Feedback-Files in die entsprechenden User-Ordner\n" .
-               "3. **Re-Upload:** ZIP komplett wieder hochladen für automatische Verarbeitung\n\n" .
+               "3. **Re-Upload:** ZIP komplett wieder hochladen\n\n" .
                "## Team-Übersicht\n\n" .
                $this->generateTeamOverviewForReadme($teams) . "\n\n" .
                "---\n" .
-               "*Generiert durch ExerciseStatusFile Plugin - Phase 4 Multi-Feedback*\n";
+               "*Generiert durch ExerciseStatusFile Plugin*\n";
     }
     
     /**
-     * UTILITY: Team-Overview für README
+     * Team-Overview für README
      */
     private function generateTeamOverviewForReadme(array $teams): string
     {
@@ -491,9 +419,9 @@ class ilExBatchDownloadHandler
     }
     
     /**
-     * UTILITY: Batch-Statistiken generieren
+     * Statistiken generieren
      */
-    private function generateBatchStatistics(\ilExAssignment $assignment, array $teams): array
+    private function generateStatistics(\ilExAssignment $assignment, array $teams): array
     {
         $stats = [
             'summary' => [
@@ -507,7 +435,6 @@ class ilExBatchDownloadHandler
             'teams' => []
         ];
         
-        // Status-Verteilung berechnen
         $status_counts = [];
         foreach ($teams as $team_data) {
             $status = $team_data['status'];
@@ -527,11 +454,11 @@ class ilExBatchDownloadHandler
     }
     
     /**
-     * UTILITY: Temp-Directory erstellen
+     * Temp-Directory erstellen
      */
     private function createTempDirectory(string $prefix): string
     {
-        $temp_dir = sys_get_temp_dir() . '/plugin_batch_' . $prefix . '_' . uniqid();
+        $temp_dir = sys_get_temp_dir() . '/plugin_multi_feedback_' . $prefix . '_' . uniqid();
         mkdir($temp_dir, 0777, true);
         $this->temp_directories[] = $temp_dir;
         
@@ -539,7 +466,7 @@ class ilExBatchDownloadHandler
     }
     
     /**
-     * UTILITY: ASCII-Konvertierung
+     * ASCII-Konvertierung
      */
     private function toAscii(string $filename): string
     {
@@ -548,7 +475,7 @@ class ilExBatchDownloadHandler
     }
     
     /**
-     * CLEANUP: Alle Temp-Directories aufräumen
+     * Alle Temp-Directories aufräumen
      */
     public function cleanupAllTempDirectories(): void
     {
@@ -561,7 +488,7 @@ class ilExBatchDownloadHandler
     }
     
     /**
-     * CLEANUP: Einzelnes Temp-Directory aufräumen
+     * Einzelnes Temp-Directory aufräumen
      */
     private function cleanupTempDirectory(string $temp_dir): void
     {
@@ -578,7 +505,7 @@ class ilExBatchDownloadHandler
             }
             rmdir($temp_dir);
         } catch (Exception $e) {
-            $this->logger->warning("Plugin Batch: Could not cleanup temp directory $temp_dir: " . $e->getMessage());
+            $this->logger->warning("Could not cleanup temp directory $temp_dir: " . $e->getMessage());
         }
     }
 }

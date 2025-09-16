@@ -32,8 +32,7 @@ class ilExerciseStatusFilePlugin extends ilUserInterfaceHookPlugin
     }
 
     /**
-     * ERWEITERTE DEPENDENCY CHECKS für Phase 1
-     * Prüft alle benötigten ILIAS-Klassen vor Plugin-Aktivierung
+     * Dependency Checks vor Plugin-Aktivierung
      */
     protected function beforeActivation(): bool
     {
@@ -54,59 +53,57 @@ class ilExerciseStatusFilePlugin extends ilUserInterfaceHookPlugin
         foreach ($required_classes as $class_name => $description) {
             if (!class_exists($class_name)) {
                 $missing_classes[] = "$class_name ($description)";
-                $logger->error("Plugin ExerciseStatusFile: Missing required class: $class_name");
+                $logger->error("Plugin dependency check failed: Missing class $class_name");
             }
         }
         
         if (!empty($missing_classes)) {
-            $logger->error("Plugin ExerciseStatusFile: Cannot activate - missing dependencies: " . 
+            $logger->error("Plugin activation failed - missing dependencies: " . 
                           implode(', ', $missing_classes));
             return false;
         }
         
-        // Zusätzliche Prüfungen für Phase 1
+        // Zusätzliche System-Prüfungen
         try {
-            // Prüfe ob ZipArchive verfügbar ist
+            // ZipArchive verfügbar?
             if (!class_exists('ZipArchive')) {
-                $logger->error("Plugin ExerciseStatusFile: ZipArchive extension not available");
+                $logger->error("Plugin activation failed: ZipArchive extension not available");
                 return false;
             }
             
-            // Prüfe ob PhpSpreadsheet verfügbar ist (für Excel-Support)
+            // PhpSpreadsheet verfügbar? (Optional)
             if (!class_exists('PhpOffice\PhpSpreadsheet\Spreadsheet')) {
-                $logger->warning("Plugin ExerciseStatusFile: PhpSpreadsheet not available - Excel support limited");
-                // Nicht kritisch, Plugin kann auch ohne Excel funktionieren
+                $logger->warning("PhpSpreadsheet not available - Excel support limited");
             }
             
-            // Prüfe temp-Directory-Zugriff
+            // Temp-Directory-Zugriff
             $temp_test = sys_get_temp_dir() . '/plugin_test_' . uniqid();
             if (!@mkdir($temp_test, 0777, true)) {
-                $logger->error("Plugin ExerciseStatusFile: Cannot create temporary directories");
+                $logger->error("Plugin activation failed: Cannot create temporary directories");
                 return false;
             }
             @rmdir($temp_test);
             
-            $logger->info("Plugin ExerciseStatusFile: All dependency checks passed");
             return true;
             
         } catch (Exception $e) {
-            $logger->error("Plugin ExerciseStatusFile: Error in dependency check: " . $e->getMessage());
+            $logger->error("Plugin dependency check error: " . $e->getMessage());
             return false;
         }
     }
 
     /**
-     * NEU: After Activation Hook für Logging
+     * Nach erfolgreicher Aktivierung
      */
     protected function afterActivation(): void
     {
         global $DIC;
         $logger = $DIC->logger()->root();
-        $logger->info("Plugin ExerciseStatusFile v1.1.0 activated successfully - Enhanced Assignment Detection enabled");
+        $logger->info("ExerciseStatusFile Plugin v1.1.0 activated successfully");
     }
 
     /**
-     * NEU: After Deactivation Hook für Cleanup
+     * Nach Deaktivierung - Cleanup
      */
     protected function afterDeactivation(): void
     {
@@ -118,6 +115,6 @@ class ilExerciseStatusFilePlugin extends ilUserInterfaceHookPlugin
             unset($_SESSION['exc_status_files_processed']);
         }
         
-        $logger->info("Plugin ExerciseStatusFile deactivated and cleaned up");
+        $logger->info("ExerciseStatusFile Plugin deactivated and cleaned up");
     }
 }
