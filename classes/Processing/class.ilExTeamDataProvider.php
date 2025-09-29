@@ -8,13 +8,13 @@ declare(strict_types=1);
  * Verwendet nur stabile ILIAS-APIs
  * 
  * @author Cornel Musielak
- * @version 1.1.0
+ * @version 1.1.1
  */
 class ilExTeamDataProvider
 {
     private ilLogger $logger;
     private ilDBInterface $db;
-    private ilExerciseStatusFilePlugin $plugin;
+    private ?ilExerciseStatusFilePlugin $plugin = null;
     
     public function __construct()
     {
@@ -22,16 +22,40 @@ class ilExTeamDataProvider
         $this->logger = $DIC->logger()->root();
         $this->db = $DIC->database();
         
-        // Plugin-Instanz für Übersetzungen
-        $plugin_id = 'exstatusfile';
+        // Plugin-Instanz für Übersetzungen - mit Fallback
+        try {
+            $plugin_id = 'exstatusfile';
+            $repo = $DIC['component.repository'];
+            $factory = $DIC['component.factory'];
 
-        $repo = $DIC['component.repository'];
-        $factory = $DIC['component.factory'];
-
-        $info = $repo->getPluginById($plugin_id);
-        if ($info !== null && $info->isActive()) {
-            $this->plugin = $factory->getPlugin($plugin_id);
+            $info = $repo->getPluginById($plugin_id);
+            if ($info !== null && $info->isActive()) {
+                $this->plugin = $factory->getPlugin($plugin_id);
+            }
+        } catch (Exception $e) {
+            $this->logger->warning("Could not load plugin for translations: " . $e->getMessage());
+            $this->plugin = null;
         }
+    }
+    
+    /**
+     * Übersetzung mit Fallback
+     */
+    private function txt(string $key): string
+    {
+        if ($this->plugin !== null) {
+            return $this->plugin->txt($key);
+        }
+        
+        // Fallback-Übersetzungen
+        $fallbacks = [
+            'status_passed' => 'Bestanden',
+            'status_failed' => 'Nicht bestanden',
+            'status_notgraded' => 'Nicht bewertet',
+            'team_error_loading' => 'Fehler beim Laden der Teams'
+        ];
+        
+        return $fallbacks[$key] ?? $key;
     }
     
     /**
@@ -179,12 +203,12 @@ class ilExTeamDataProvider
     {
         switch ($status) {
             case 'passed':
-                return $this->plugin->txt('status_passed');
+                return $this->txt('status_passed');
             case 'failed':
-                return $this->plugin->txt('status_failed');
+                return $this->txt('status_failed');
             case 'notgraded':
             default:
-                return $this->plugin->txt('status_notgraded');
+                return $this->txt('status_notgraded');
         }
     }
     
@@ -194,7 +218,7 @@ class ilExTeamDataProvider
     private function getDefaultStatus(): array
     {
         return [
-            'status' => $this->plugin->txt('status_notgraded'),
+            'status' => $this->txt('status_notgraded'),
             'mark' => '',
             'notice' => '',
             'comment' => ''
@@ -224,7 +248,7 @@ class ilExTeamDataProvider
             
             echo json_encode([
                 'error' => true,
-                'message' => $this->plugin->txt('team_error_loading'),
+                'message' => $this->txt('team_error_loading'),
                 'details' => $e->getMessage()
             ], JSON_UNESCAPED_UNICODE);
             exit;
@@ -241,7 +265,7 @@ class ilExTeamDataProvider
             'teams_count' => count($this->getTeamsForAssignment($assignment_id)),
             'teams_data' => $this->getTeamsForAssignment($assignment_id),
             'timestamp' => date('Y-m-d H:i:s'),
-            'version' => '1.1.0'
+            'version' => '1.1.1'
         ];
     }
 }

@@ -14,7 +14,7 @@ class ilExMultiFeedbackDownloadHandler
     private ilLogger $logger;
     private array $temp_directories = [];
     private ilExTeamDataProvider $team_provider;
-    private ilExerciseStatusFilePlugin $plugin;
+    private ?ilExerciseStatusFilePlugin $plugin = null;
     
     public function __construct()
     {
@@ -30,7 +30,11 @@ class ilExMultiFeedbackDownloadHandler
 
         $info = $repo->getPluginById($plugin_id);
         if ($info !== null && $info->isActive()) {
-            $this->plugin = $factory->getPlugin();
+            try {
+                $this->plugin = $factory->getPlugin($plugin_id);
+            } catch (Exception $e) {
+                $this->plugin = null;
+            }
         }
         
         register_shutdown_function([$this, 'cleanupAllTempDirectories']);

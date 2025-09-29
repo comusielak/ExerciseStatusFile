@@ -7,13 +7,13 @@ declare(strict_types=1);
  * Stellt User-Daten für Individual-Assignments bereit (analog zu Team Data Provider)
  * 
  * @author Cornel Musielak
- * @version 1.1.0
+ * @version 1.1.1
  */
 class ilExUserDataProvider
 {
     private ilLogger $logger;
     private ilDBInterface $db;
-    private ilExerciseStatusFilePlugin $plugin;
+    private ?ilExerciseStatusFilePlugin $plugin = null;
     
     public function __construct()
     {
@@ -21,16 +21,40 @@ class ilExUserDataProvider
         $this->logger = $DIC->logger()->root();
         $this->db = $DIC->database();
         
-        // Plugin-Instanz für Übersetzungen
-        $plugin_id = 'exstatusfile';
+        // Plugin-Instanz für Übersetzungen - mit Fallback
+        try {
+            $plugin_id = 'exstatusfile';
+            $repo = $DIC['component.repository'];
+            $factory = $DIC['component.factory'];
 
-        $repo = $DIC['component.repository'];
-        $factory = $DIC['component.factory'];
-
-        $info = $repo->getPluginById($plugin_id);
-        if ($info !== null && $info->isActive()) {
-            $this->plugin = $factory->getPlugin();
+            $info = $repo->getPluginById($plugin_id);
+            if ($info !== null && $info->isActive()) {
+                $this->plugin = $factory->getPlugin($plugin_id);
+            }
+        } catch (Exception $e) {
+            $this->logger->warning("Could not load plugin for translations: " . $e->getMessage());
+            $this->plugin = null;
         }
+    }
+    
+    /**
+     * Übersetzung mit Fallback
+     */
+    private function txt(string $key): string
+    {
+        if ($this->plugin !== null) {
+            return $this->plugin->txt($key);
+        }
+        
+        // Fallback-Übersetzungen
+        $fallbacks = [
+            'status_passed' => 'Bestanden',
+            'status_failed' => 'Nicht bestanden',
+            'status_notgraded' => 'Nicht bewertet',
+            'individual_error_loading' => 'Fehler beim Laden der Teilnehmer'
+        ];
+        
+        return $fallbacks[$key] ?? $key;
     }
     
     /**
@@ -179,12 +203,8 @@ class ilExUserDataProvider
             try {
                 $member_status = $assignment->getMemberStatus($user_id);
                 if ($member_status) {
-                    $returned_obj = $member_status->getReturned();
-                    if ($returned_obj && method_exists($returned_obj, 'getTimestamp')) {
-                        $timestamp = $returned_obj->getTimestamp();
-                        if ($timestamp && $timestamp > 0) {
-                            return true;
-                        }
+                    if ($member_status->getReturned()) {
+                        return true;
                     }
                 }
             } catch (Exception $e) {
@@ -206,12 +226,12 @@ class ilExUserDataProvider
     {
         switch ($status) {
             case 'passed':
-                return $this->plugin->txt('status_passed');
+                return $this->txt('status_passed');
             case 'failed':
-                return $this->plugin->txt('status_failed');
+                return $this->txt('status_failed');
             case 'notgraded':
             default:
-                return $this->plugin->txt('status_notgraded');
+                return $this->txt('status_notgraded');
         }
     }
     
@@ -221,7 +241,7 @@ class ilExUserDataProvider
     private function getDefaultStatus(): array
     {
         return [
-            'status' => $this->plugin->txt('status_notgraded'),
+            'status' => $this->txt('status_notgraded'),
             'mark' => '',
             'notice' => '',
             'comment' => ''
@@ -255,7 +275,7 @@ class ilExUserDataProvider
             echo json_encode([
                 'success' => false,
                 'error' => true,
-                'message' => $this->plugin->txt('individual_error_loading'),
+                'message' => $this->txt('individual_error_loading'),
                 'details' => $e->getMessage()
             ], JSON_UNESCAPED_UNICODE);
             exit;
