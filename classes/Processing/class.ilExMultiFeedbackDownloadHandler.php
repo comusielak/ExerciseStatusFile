@@ -505,7 +505,8 @@ class ilExMultiFeedbackDownloadHandler
             }
             rmdir($temp_dir);
         } catch (Exception $e) {
-            $this->logger->warning("Could not cleanup temp directory $temp_dir: " . $e->getMessage());
+            // Silent cleanup failure
         }
     }
 }
+?>

@@ -22,7 +22,7 @@ class ilExTeamButtonRenderer
     }
     
     /**
-     * Globale JavaScript-Funktionen für Multi-Feedback registrieren
+     * Globale JavaScript-Funktionen für Multi-Feedback registrieren - FIXED VERSION
      */
     public function registerGlobalJavaScriptFunctions(): void
     {
@@ -170,7 +170,7 @@ class ilExTeamButtonRenderer
                         }
                     },
                     
-                    // File-Select Handler mit sofortiger Validierung
+                    // File-Select Handler - VEREINFACHTE VERSION (OHNE ZIP-CONTENT-ANALYSE)
                     handleFileSelect: function() {
                         var fileInput = document.getElementById("upload-file");
                         var uploadInfo = document.getElementById("upload-info");
@@ -183,60 +183,32 @@ class ilExTeamButtonRenderer
                             // Erst Fehlermeldungen entfernen
                             this.removeFileValidationError();
                             
-                            // Sofortige Basis-Validierung
+                            // NUR BASIS-VALIDIERUNG (keine ZIP-Content-Analyse!)
                             var validationError = this.validateUploadFile(file);
                             if (validationError) {
                                 this.showFileValidationError(validationError);
                                 return;
                             }
                             
-                            // Zeige "Analysiere..." Status
-                            var currentUploadInfo = document.getElementById("upload-info");
-                            var currentFileInfo = document.getElementById("file-info");
-                            
-                            if (currentFileInfo) {
-                                currentFileInfo.innerHTML = 
+                            // Datei ist grundsätzlich gültig - zeige Info
+                            if (fileInfo) {
+                                fileInfo.innerHTML = 
                                     "<strong>" + file.name + "</strong><br>" +
                                     "Größe: " + this.formatFileSize(file.size) + "<br>" +
                                     "Typ: " + file.type + "<br>" +
-                                    "<span style=\"color: #007bff;\">🔄 Analysiere ZIP-Inhalt...</span>";
+                                    "Geändert: " + new Date(file.lastModified).toLocaleString() + "<br>" +
+                                    "<span style=\"color: #28a745;\">✅ ZIP-Datei bereit für Upload</span><br>" +
+                                    "<small style=\"color: #666;\">Detaillierte Validierung erfolgt beim Upload</small>";
                             }
                             
-                            if (currentUploadInfo) {
-                                currentUploadInfo.style.display = "block";
+                            if (uploadInfo) {
+                                uploadInfo.style.display = "block";
                             }
                             
-                            // Erweiterte ZIP-Analyse
-                            var self = this;
-                            this.analyzeZipFile(file, function(zipError) {
-                                // Nach Analyse - Elemente erneut suchen
-                                var finalUploadInfo = document.getElementById("upload-info");
-                                var finalFileInfo = document.getElementById("file-info");
-                                var finalUploadBtn = document.getElementById("start-upload-btn");
-                                
-                                if (zipError) {
-                                    self.showFileValidationError(zipError);
-                                } else {
-                                    // Datei ist vollständig gültig
-                                    if (finalFileInfo) {
-                                        finalFileInfo.innerHTML = 
-                                            "<strong>" + file.name + "</strong><br>" +
-                                            "Größe: " + self.formatFileSize(file.size) + "<br>" +
-                                            "Typ: " + file.type + "<br>" +
-                                            "Geändert: " + new Date(file.lastModified).toLocaleString() + "<br>" +
-                                            "<span style=\"color: #28a745;\">✅ Multi-Feedback ZIP erkannt</span>";
-                                    }
-                                    
-                                    if (finalUploadInfo) {
-                                        finalUploadInfo.style.display = "block";
-                                    }
-                                    
-                                    if (finalUploadBtn) {
-                                        finalUploadBtn.disabled = false;
-                                        finalUploadBtn.style.background = "#28a745";
-                                    }
-                                }
-                            });
+                            if (uploadBtn) {
+                                uploadBtn.disabled = false;
+                                uploadBtn.style.background = "#28a745";
+                            }
                             
                         } else {
                             this.removeFileValidationError();
@@ -248,63 +220,7 @@ class ilExTeamButtonRenderer
                         }
                     },
                     
-                    // ZIP-Datei-Inhalt analysieren (vereinfacht)
-                    analyzeZipFile: function(file, callback) {
-                        var reader = new FileReader();
-                        reader.onload = function(e) {
-                            try {
-                                var content = e.target.result;
-                                var uint8Array = new Uint8Array(content);
-                                
-                                // ZIP-Header prüfen (vereinfacht)
-                                if (uint8Array.length < 4 || 
-                                    uint8Array[0] !== 0x50 || uint8Array[1] !== 0x4B) {
-                                    callback("Die Datei ist kein gültiges ZIP-Archiv.");
-                                    return;
-                                }
-                                
-                                // Konvertiere zu String für Struktur-Analyse
-                                var binaryString = "";
-                                for (var i = 0; i < Math.min(uint8Array.length, 50000); i++) { // Nur ersten Teil analysieren
-                                    binaryString += String.fromCharCode(uint8Array[i]);
-                                }
-                                
-                                // Suche nach Struktur-Indikatoren
-                                var hasStatusFiles = binaryString.indexOf("status.xlsx") !== -1 || 
-                                                   binaryString.indexOf("status.csv") !== -1 ||
-                                                   binaryString.indexOf("status.xls") !== -1;
-                                
-                                var hasTeamStructure = binaryString.indexOf("Team_") !== -1;
-                                var hasUserStructure = binaryString.indexOf("_") !== -1 && 
-                                                     (binaryString.indexOf("login") !== -1 || 
-                                                      binaryString.match(/[A-Za-z]+_[A-Za-z]+_/));
-                                
-                                // Validierungen
-                                if (!hasStatusFiles) {
-                                    callback("Das ZIP enthält keine Status-Dateien (status.xlsx/csv). Dies ist keine Multi-Feedback ZIP-Datei.");
-                                    return;
-                                }
-                                
-                                if (!hasUserStructure && !hasTeamStructure) {
-                                    callback("Das ZIP enthält keine User-Ordner oder Team-Struktur. Es scheint nur Status-Dateien zu enthalten.");
-                                    return;
-                                }
-                                
-                                callback(null); // Alles OK
-                                
-                            } catch (error) {
-                                callback("Fehler beim Analysieren der ZIP-Datei. Möglicherweise ist die Datei beschädigt.");
-                            }
-                        };
-                        
-                        reader.onerror = function() {
-                            callback("Fehler beim Lesen der ZIP-Datei.");
-                        };
-                        
-                        reader.readAsArrayBuffer(file);
-                    },
-                    
-                    // Datei-Validierung (Frontend) - Basis-Checks
+                    // Vereinfachte Basis-Validierung (NUR Grundprüfungen)
                     validateUploadFile: function(file) {
                         // 1. Ist Datei leer?
                         if (file.size === 0) {
@@ -316,15 +232,25 @@ class ilExTeamButtonRenderer
                             return "Die Datei ist zu klein, um ein gültiges ZIP-Archiv zu sein.";
                         }
                         
-                        // 3. Ist es eine ZIP-Datei? (basierend auf Name und Typ)
+                        // 3. Maximale Dateigröße (z.B. 100MB)
+                        var maxSize = 100 * 1024 * 1024; // 100MB
+                        if (file.size > maxSize) {
+                            return "Die ZIP-Datei ist zu groß (max. 100MB).";
+                        }
+                        
+                        // 4. Ist es eine ZIP-Datei? (nur basierend auf Name und Typ)
                         var fileName = file.name.toLowerCase();
                         var fileType = file.type.toLowerCase();
                         
-                        if (!fileName.endsWith(\'.zip\') && !fileType.includes(\'zip\')) {
-                            return "Bitte wählen Sie eine ZIP-Datei aus. Die ausgewählte Datei ist: " + (fileType || "unbekannter Typ");
+                        if (!fileName.endsWith(\'.zip\') && 
+                            !fileType.includes(\'zip\') && 
+                            fileType !== \'application/x-zip-compressed\' &&
+                            fileType !== \'application/zip\') {
+                            return "Bitte wählen Sie eine ZIP-Datei aus. Aktuelle Datei: " + 
+                                file.name + " (" + (fileType || "unbekannter Typ") + ")";
                         }
                         
-                        return null; // Basis-Checks OK, weitere Analyse folgt
+                        return null; // Basis-Checks OK - detaillierte Validierung in PHP
                     },
                     
                     // Fehlermeldung entfernen
@@ -565,7 +491,7 @@ class ilExTeamButtonRenderer
                                 "<div style=\"border: 1px solid #ddd; border-radius: 5px; padding: 10px; margin-bottom: 8px; background: #fafafa;\">" +
                                     "<label style=\"display: flex; align-items: flex-start; cursor: pointer;\">" +
                                         "<input type=\"checkbox\" class=\"team-checkbox\" value=\"" + team.team_id + "\" " +
-                                               "style=\"margin-right: 10px; margin-top: 2px;\">" +
+                                            "style=\"margin-right: 10px; margin-top: 2px;\">" +
                                         "<div style=\"flex: 1;\">" +
                                             "<strong>Team " + team.team_id + "</strong>" +
                                             "<div style=\"font-size: 0.9em; color: #666; margin-top: 3px;\">" +
@@ -742,51 +668,51 @@ class ilExTeamButtonRenderer
             }
         ');
     }
-    
-    /**
-     * Team-Button in ILIAS-Toolbar rendern
-     */
-    public function renderTeamButton(int $assignment_id): void
-    {
-        $this->template->addOnLoadCode("
-            setTimeout(function() {
-                window.ExerciseStatusFilePlugin.removeExistingPluginBox();
-                
-                var targetContainer = null;
-                var allButtons = document.querySelectorAll('input[type=\"submit\"], input[type=\"button\"]');
-                
-                // Suche nach passender Toolbar
-                for (var i = 0; i < allButtons.length; i++) {
-                    var btn = allButtons[i];
-                    if (btn.value && (btn.value.includes('Einzelteams') || btn.value.includes('herunterladen'))) {
-                        targetContainer = btn.parentNode;
-                        break;
-                    }
-                }
-                
-                if (targetContainer) {
-                    var multiFeedbackBtn = document.createElement('input');
-                    multiFeedbackBtn.type = 'button';
-                    multiFeedbackBtn.value = 'Multi-Feedback';
-                    multiFeedbackBtn.style.cssText = 'margin-left: 10px; background: #4c6586; color: white; border: 1px solid #4c6586; padding: 4px 8px; border-radius: 3px; cursor: pointer;';
+        
+        /**
+         * Team-Button in ILIAS-Toolbar rendern
+         */
+        public function renderTeamButton(int $assignment_id): void
+        {
+            $this->template->addOnLoadCode("
+                setTimeout(function() {
+                    window.ExerciseStatusFilePlugin.removeExistingPluginBox();
                     
-                    var existingButton = targetContainer.querySelector('input[type=\"submit\"], input[type=\"button\"]');
-                    if (existingButton && existingButton.className) {
-                        multiFeedbackBtn.className = existingButton.className;
-                        multiFeedbackBtn.style.background = '#4c6586';
-                        multiFeedbackBtn.style.borderColor = '#4c6586';
-                        multiFeedbackBtn.style.color = 'white';
+                    var targetContainer = null;
+                    var allButtons = document.querySelectorAll('input[type=\"submit\"], input[type=\"button\"]');
+                    
+                    // Suche nach passender Toolbar
+                    for (var i = 0; i < allButtons.length; i++) {
+                        var btn = allButtons[i];
+                        if (btn.value && (btn.value.includes('Einzelteams') || btn.value.includes('herunterladen'))) {
+                            targetContainer = btn.parentNode;
+                            break;
+                        }
                     }
                     
-                    multiFeedbackBtn.onclick = function() {
-                        window.ExerciseStatusFilePlugin.startTeamMultiFeedback($assignment_id);
-                    };
-                    
-                    targetContainer.appendChild(multiFeedbackBtn);
-                }
-            }, 500);
-        ");
-    }
+                    if (targetContainer) {
+                        var multiFeedbackBtn = document.createElement('input');
+                        multiFeedbackBtn.type = 'button';
+                        multiFeedbackBtn.value = 'Multi-Feedback';
+                        multiFeedbackBtn.style.cssText = 'margin-left: 10px; background: #4c6586; color: white; border: 1px solid #4c6586; padding: 4px 8px; border-radius: 3px; cursor: pointer;';
+                        
+                        var existingButton = targetContainer.querySelector('input[type=\"submit\"], input[type=\"button\"]');
+                        if (existingButton && existingButton.className) {
+                            multiFeedbackBtn.className = existingButton.className;
+                            multiFeedbackBtn.style.background = '#4c6586';
+                            multiFeedbackBtn.style.borderColor = '#4c6586';
+                            multiFeedbackBtn.style.color = 'white';
+                        }
+                        
+                        multiFeedbackBtn.onclick = function() {
+                            window.ExerciseStatusFilePlugin.startTeamMultiFeedback($assignment_id);
+                        };
+                        
+                        targetContainer.appendChild(multiFeedbackBtn);
+                    }
+                }, 500);
+            ");
+        }
     
     /**
      * Info-Box für Nicht-Team-Assignments rendern

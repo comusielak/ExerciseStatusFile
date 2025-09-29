@@ -63,7 +63,6 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
      */
     public function modifyGUI(string $a_comp, string $a_part, array $a_par = []): void
     {
-        try {
             global $DIC;
             
             // AJAX-Requests abfangen
@@ -86,10 +85,6 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
             
             // UI-Rendering
             $this->renderUI($assignment_id);
-            
-        } catch (Exception $e) {
-            $this->logger->error("UI Hook error: " . $e->getMessage());
-        }
     }
     
     /**

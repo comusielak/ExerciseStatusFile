@@ -67,7 +67,6 @@ class ilExTeamDataProvider
                 return null;
             }
             
-            // Team-Mitglieder laden
             $members_data = [];
             foreach ($member_ids as $user_id) {
                 $member_data = $this->getMemberData($user_id);
@@ -80,7 +79,6 @@ class ilExTeamDataProvider
                 return null;
             }
             
-            // Team-Status ermitteln
             $team_status = $this->getTeamStatus($team, $assignment);
             
             return [
@@ -132,7 +130,6 @@ class ilExTeamDataProvider
     private function getTeamStatus(ilExAssignmentTeam $team, \ilExAssignment $assignment): array
     {
         try {
-            // Status vom ersten Team-Mitglied nehmen
             $member_ids = $team->getMembers();
             if (empty($member_ids)) {
                 return $this->getDefaultStatus();
@@ -236,3 +233,4 @@ class ilExTeamDataProvider
         ];
     }
 }
+?>

@@ -95,12 +95,10 @@ class ilPluginExAssignmentStatusFile extends ilExcel
 
     public function writeToFile($a_file): void {
         try {
-            // Workbook initialisieren falls noch nicht geschehen
             if (!$this->workbook) {
                 $this->workbook = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
             }
             
-            // Alle existierenden Sheets entfernen
             while ($this->workbook->getSheetCount() > 0) {
                 $this->workbook->removeSheetByIndex(0);
             }
@@ -111,7 +109,6 @@ class ilPluginExAssignmentStatusFile extends ilExcel
                 $this->writeMemberSheet();
             }
             
-            // Writer erstellen und Datei speichern
             $writer = IOFactory::createWriter($this->workbook, $this->format);
             $writer->save($a_file);
             
@@ -138,7 +135,6 @@ class ilPluginExAssignmentStatusFile extends ilExcel
             $exercise_obj_id = $this->assignment->getExerciseId();
             $assignment_id = $this->assignment->getId();
             
-            // Mitglieder der Übung aus der Datenbank holen
             $member_query = "SELECT usr_id FROM exc_members WHERE obj_id = " . $db->quote($exercise_obj_id, 'integer');
             $member_result = $db->query($member_query);
             
@@ -155,7 +151,6 @@ class ilPluginExAssignmentStatusFile extends ilExcel
                 return;
             }
             
-            // User-Daten aus der Datenbank holen
             $user_ids_string = implode(',', array_map('intval', $member_ids));
             
             $user_query = "SELECT usr_id, login, firstname, lastname FROM usr_data 
@@ -168,7 +163,6 @@ class ilPluginExAssignmentStatusFile extends ilExcel
                 $users[(int)$row['usr_id']] = $row;
             }
             
-            // Assignment Member Status aus der Datenbank holen
             $status_query = "SELECT usr_id, status, mark, notice, u_comment 
                              FROM exc_mem_ass_status 
                              WHERE ass_id = " . $db->quote($assignment_id, 'integer') . "
@@ -191,7 +185,6 @@ class ilPluginExAssignmentStatusFile extends ilExcel
                     continue;
                 }
                 
-                // Status konvertieren
                 $status_string = 'notgraded';
                 if ($status_data && !empty($status_data['status'])) {
                     switch ($status_data['status']) {
@@ -253,6 +246,9 @@ class ilPluginExAssignmentStatusFile extends ilExcel
                 continue;
             }
 
+            // Status normalisieren
+            $data['status'] = $this->normalizeStatus($data['status']);
+            
             $this->checkRowData($data);
             $this->updates[] = $data;
         }
@@ -271,17 +267,15 @@ class ilPluginExAssignmentStatusFile extends ilExcel
             $logins = [];
             $member = [];
             
-            // Verwende die Member-IDs aus dem Array
             foreach ($team_data['members'] as $usr_id) {
                 if (isset($this->members[$usr_id])) {
                     $logins[] = $this->members[$usr_id]['login'];
-                    $member = $this->members[$usr_id]; // Letzter Member für Status-Daten
+                    $member = $this->members[$usr_id];
                 } else {
                     $logins[] = \ilObjUser::_lookupLogin($usr_id);
                 }
             }
 
-            // Fallback auf Team-Daten wenn kein Member gefunden
             if (empty($member)) {
                 $member = [
                     'status' => $team_data['status'],
@@ -316,7 +310,9 @@ class ilPluginExAssignmentStatusFile extends ilExcel
         }
 
         $index = array_flip($this->team_titles);
-        foreach ($sheet as $rowdata) {
+        $skipped_rows = 0;
+        
+        foreach ($sheet as $row_number => $rowdata) {
             $data = [];
             $data['update'] = (bool)  $rowdata[$index['update']];
             $data['team_id'] = (string) $rowdata[$index['team_id']];
@@ -327,19 +323,84 @@ class ilPluginExAssignmentStatusFile extends ilExcel
             $data['plag_flag'] = ((string) $rowdata[$index['plagiarism']] ? (string) $rowdata[$index['plagiarism']] : 'none');
             $data['plag_comment'] = (string) $rowdata[$index['plag_comment']];
 
-            if (!$data['update'] || !isset($this->teams[$data['team_id']])) {
+            if (!$data['update']) {
+                $skipped_rows++;
+                continue;
+            }
+            
+            if (!isset($this->teams[$data['team_id']])) {
+                $skipped_rows++;
                 continue;
             }
 
+            // Status normalisieren
+            $original_status = $data['status'];
+            $data['status'] = $this->normalizeStatus($original_status);
+            
             $this->checkRowData($data);
             $this->updates[] = $data;
+        }
+        
+        $updates_count = count($this->updates);
+        if ($updates_count === 0 && $skipped_rows > 0) {
+            throw new ilExerciseException(
+                "No valid updates found! Check that:\n" .
+                "1. 'update' column is set to 1\n" .
+                "2. Team IDs exist in the assignment\n" .
+                "3. Status values are valid (passed/failed/notgraded)"
+            );
         }
     }
 
     protected function checkRowData($data) {
         if (!in_array($data['status'], $this->valid_states)) {
-            throw new ilExerciseException("Invalid status: " . $data['status']);
+            $allowed_examples = [
+                'passed (or: bestanden, ok, success, 1, yes)',
+                'failed (or: nicht bestanden, not passed, fail, 0, no)', 
+                'notgraded (or: not graded, nicht bewertet, pending, offen)'
+            ];
+            
+            throw new ilExerciseException(
+                "Invalid status: '{$data['status']}'. Allowed:\n" . 
+                "- " . implode("\n- ", $allowed_examples)
+            );
         }
+    }
+
+    /**
+     * Status-Werte normalisieren
+     */
+    protected function normalizeStatus(string $status): string {
+        $status = trim(strtolower($status));
+        
+        $status_mapping = [
+            // Passed Variationen
+            'passed' => 'passed',
+            'bestanden' => 'passed', 
+            'ok' => 'passed',
+            'success' => 'passed',
+            '1' => 'passed',
+            'yes' => 'passed',
+            'ja' => 'passed',
+            
+            // Failed Variationen
+            'failed' => 'failed',
+            'not passed' => 'failed',
+            'nicht bestanden' => 'failed',
+            'fail' => 'failed',
+            '0' => 'failed', 
+            'no' => 'failed',
+            'nein' => 'failed',
+            
+            // Not graded Variationen
+            'notgraded' => 'notgraded',
+            'not graded' => 'notgraded',
+            'nicht bewertet' => 'notgraded',
+            'pending' => 'notgraded',
+            '' => 'notgraded'
+        ];
+        
+        return $status_mapping[$status] ?? $status;
     }
 
     public function applyStatusUpdates() {
@@ -350,7 +411,7 @@ class ilPluginExAssignmentStatusFile extends ilExcel
             } elseif (isset($data['team_id'])) {
                 if (isset($this->teams[$data['team_id']])) {
                     $team_data = $this->teams[$data['team_id']];
-                    $user_ids = $team_data['members']; // Array mit User-IDs
+                    $user_ids = $team_data['members'];
                 }
             }
 
@@ -416,7 +477,6 @@ class ilPluginExAssignmentStatusFile extends ilExcel
 
     protected function writeMemberSheet() {
         try {
-            // Sheet erstellen oder aktivieren
             if ($this->workbook->getSheetCount() == 0) {
                 $sheet = $this->workbook->createSheet();
             } else {
@@ -425,60 +485,47 @@ class ilPluginExAssignmentStatusFile extends ilExcel
             
             $sheet->setTitle('members');
             
-            // Header-Zeile schreiben
-            $col = 1; // PhpSpreadsheet verwendet 1-basierte Indizes
+            $col = 1;
             foreach ($this->member_titles as $title) {
                 $sheet->setCellValue([$col, 1], $title);
                 $col++;
             }
             
-            // Datenzeilen schreiben
             $row = 2;
             foreach ($this->members as $member) {
                 $col = 1;
                 
-                // update (immer 0 für neue Dateien)
                 $sheet->setCellValue([$col, $row], 0);
                 $col++;
                 
-                // usr_id
                 $sheet->setCellValue([$col, $row], $member['usr_id']);
                 $col++;
                 
-                // login
                 $sheet->setCellValue([$col, $row], $member['login']);
                 $col++;
                 
-                // lastname
                 $sheet->setCellValue([$col, $row], $member['lastname']);
                 $col++;
                 
-                // firstname
                 $sheet->setCellValue([$col, $row], $member['firstname']);
                 $col++;
                 
-                // status
                 $sheet->setCellValue([$col, $row], $member['status']);
                 $col++;
                 
-                // mark
                 $sheet->setCellValue([$col, $row], $member['mark']);
                 $col++;
                 
-                // notice  
                 $sheet->setCellValue([$col, $row], $member['notice']);
                 $col++;
                 
-                // comment
                 $sheet->setCellValue([$col, $row], $member['comment']);
                 $col++;
                 
-                // plagiarism (leer wenn 'none')
                 $plag_display = ($member['plag_flag'] == 'none' ? '' : $member['plag_flag']);
                 $sheet->setCellValue([$col, $row], $plag_display);
                 $col++;
                 
-                // plag_comment
                 $sheet->setCellValue([$col, $row], $member['plag_comment']);
                 
                 $row++;
@@ -497,7 +544,6 @@ class ilPluginExAssignmentStatusFile extends ilExcel
         try {
             $assignment_id = $this->assignment->getId();
             
-            // Teams direkt über ILIAS-API holen
             $teams = ilExAssignmentTeam::getInstancesFromMap($assignment_id);
             
             if (empty($teams)) {
@@ -508,7 +554,6 @@ class ilPluginExAssignmentStatusFile extends ilExcel
             $this->teams = [];
             
             foreach ($teams as $team_id => $team) {
-                // Team-Member-Daten sammeln
                 $member_logins = [];
                 $member_names = [];
                 $member_ids = $team->getMembers();
@@ -521,7 +566,6 @@ class ilPluginExAssignmentStatusFile extends ilExcel
                     }
                 }
                 
-                // Team-Status ermitteln (vom ersten Team-Mitglied)
                 $first_member = reset($member_ids);
                 $member_status = $this->assignment->getMemberStatus($first_member);
                 
@@ -561,3 +605,4 @@ class ilPluginExAssignmentStatusFile extends ilExcel
         return $this->updates;
     }
 }
+?>

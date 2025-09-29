@@ -68,7 +68,6 @@ class ilExFeedbackUploadHandler
         if (!$temp_zip) return;
         
         try {
-            // Umfassende ZIP-Validierung
             $this->validateZipForAssignment($temp_zip, $assignment_id);
             
             $extracted_files = $this->extractZipContents($temp_zip, 'team_extract');
@@ -94,7 +93,6 @@ class ilExFeedbackUploadHandler
         if (!$temp_zip) return;
         
         try {
-            // Umfassende ZIP-Validierung
             $this->validateZipForAssignment($temp_zip, $assignment_id);
             
             $extracted_files = $this->extractZipContents($temp_zip, 'individual_extract');
@@ -116,102 +114,76 @@ class ilExFeedbackUploadHandler
      */
     private function validateZipForAssignment(string $zip_path, int $assignment_id): void
     {
-        // 1. Ist es überhaupt ein gültiges ZIP?
         $zip = new \ZipArchive();
         $zip_result = $zip->open($zip_path);
         
         if ($zip_result !== true) {
-            throw new Exception("Die hochgeladene Datei ist kein gültiges ZIP-Archiv (Fehlercode: $zip_result).");
+            throw new Exception("Die hochgeladene Datei ist kein gültiges ZIP-Archiv (Code: $zip_result).");
         }
         
-        // 2. Ist das ZIP leer?
         if ($zip->numFiles === 0) {
             $zip->close();
-            throw new Exception("Das ZIP-Archiv ist leer. Bitte laden Sie eine gültige Multi-Feedback ZIP-Datei hoch.");
+            throw new Exception("Das ZIP-Archiv ist leer.");
         }
         
-        $this->logger->info("ZIP validation - found " . $zip->numFiles . " files in archive");
-        
-        // 3. Assignment-Info laden für Vergleich
+        // Nur bei Problemen loggen
         $assignment = new \ilExAssignment($assignment_id);
-        $assignment_title = $assignment->getTitle();
         $is_team_assignment = $assignment->getAssignmentType()->usesTeams();
         
-        // 4. ZIP-Inhalt analysieren
         $file_list = [];
-        $has_status_files = false;
+        $status_files_found = [];
         $has_team_structure = false;
         $has_user_structure = false;
-        $found_assignment_reference = false;
         
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $filename = $zip->getNameIndex($i);
             $file_list[] = $filename;
             
-            $this->logger->info("ZIP file $i: '$filename'");
-            
-            // Status-Files prüfen (erweitert)
             $basename = basename($filename);
-            if (in_array($basename, ['status.xlsx', 'status.csv', 'status.xls', 'batch_status.xlsx', 'batch_status.csv'])) {
-                $has_status_files = true;
-                $this->logger->info("✅ Found status file: $basename in $filename");
+            $status_file_patterns = [
+                'status.xlsx', 'status.csv', 'status.xls',
+                'batch_status.xlsx', 'batch_status.csv'
+            ];
+            
+            foreach ($status_file_patterns as $pattern) {
+                if (strcasecmp($basename, $pattern) === 0) {
+                    $status_files_found[] = $filename;
+                    break;
+                }
             }
             
-            // Team-Struktur prüfen (Team_X/ Ordner)
             if (preg_match('/Team_\d+\//', $filename)) {
                 $has_team_structure = true;
-                $this->logger->info("✅ Found team structure: $filename");
             }
             
-            // User-Struktur prüfen (Lastname_Firstname_Login_ID/ Ordner)
             if (preg_match('/[^\/]+_[^\/]+_[^\/]+_\d+\//', $filename)) {
                 $has_user_structure = true;
-                $this->logger->info("✅ Found user structure: $filename");
-            }
-            
-            // Assignment-Referenz im Dateinamen prüfen
-            if (strpos($filename, "Multi_Feedback_") !== false || 
-                strpos($filename, "Batch_Feedback_") !== false ||
-                strpos($filename, "_$assignment_id") !== false ||
-                strpos($filename, "multi_feedback_") !== false) {
-                $found_assignment_reference = true;
-                $this->logger->info("✅ Found assignment reference: $filename");
             }
         }
         
         $zip->close();
         
-        $this->logger->info("ZIP analysis results: status_files=$has_status_files, team_structure=$has_team_structure, user_structure=$has_user_structure, assignment_ref=$found_assignment_reference");
-        
-        // 5. Validierungen durchführen
-        
-        // Keine Status-Files gefunden
-        if (!$has_status_files) {
-            $this->logger->error("No status files found. Available files: " . implode(', ', array_map('basename', $file_list)));
-            throw new Exception("Keine Status-Dateien (status.xlsx, status.csv) im ZIP gefunden. Dies scheint keine Multi-Feedback ZIP-Datei zu sein.");
+        // Validierungen
+        if (empty($status_files_found)) {
+            $available_files = array_map('basename', $file_list);
+            throw new Exception(
+                "Keine Status-Dateien im ZIP gefunden.\n\n" .
+                "Erwartet: status.xlsx, status.csv\n" .
+                "Gefunden: " . implode(', ', array_slice($available_files, 0, 10))
+            );
         }
         
-        // Team-Assignment aber keine Team-Struktur
         if ($is_team_assignment && !$has_team_structure) {
-            throw new Exception("Dies ist ein Team-Assignment, aber das ZIP enthält keine Team-Ordner (Team_X/). Möglicherweise wurde die falsche ZIP-Datei hochgeladen.");
+            throw new Exception("Team-Assignment benötigt Team-Ordner (Team_1/, Team_2/, etc.)");
         }
         
-        // Individual-Assignment aber Team-Struktur gefunden
         if (!$is_team_assignment && $has_team_structure) {
-            throw new Exception("Dies ist ein Individual-Assignment, aber das ZIP enthält Team-Ordner. Möglicherweise wurde eine ZIP-Datei von einem anderen Assignment hochgeladen.");
+            throw new Exception("Individual-Assignment darf keine Team-Ordner enthalten.");
         }
         
-        // Keine User-Struktur gefunden
         if (!$has_user_structure) {
-            throw new Exception("Keine User-Ordner (Lastname_Firstname_Login_ID/) im ZIP gefunden. Dies scheint keine gültige Multi-Feedback ZIP-Datei zu sein.");
+            throw new Exception("Keine User-Ordner (Lastname_Firstname_Login_ID/) im ZIP gefunden.");
         }
-        
-        // Assignment-Titel im ZIP-Inhalt prüfen (optional, da nicht immer zuverlässig)
-        if (!$found_assignment_reference) {
-            $this->logger->warning("Keine Assignment-Referenz im ZIP gefunden - könnte von anderem Assignment stammen");
-        }
-        
-        $this->logger->info("ZIP-Validierung erfolgreich für Assignment $assignment_id");
     }
     
     /**
@@ -259,7 +231,7 @@ class ilExFeedbackUploadHandler
         }
         
         if (strlen($content) < 100) {
-            throw new Exception("Die hochgeladene Datei ist zu klein, um ein gültiges ZIP zu sein.");
+            throw new Exception("Die hochgeladene Datei ist zu klein.");
         }
         
         if (substr($content, 0, 2) !== 'PK') {
@@ -334,25 +306,15 @@ class ilExFeedbackUploadHandler
     {
         $status_files = [];
         
-        $this->logger->info("Searching for status files in " . count($extracted_files) . " extracted files:");
-        
         foreach ($extracted_files as $file) {
-            $original_name = $file['original_name'];
-            $basename = basename($original_name);
+            $basename = basename($file['original_name']);
             
-            $this->logger->info("Checking file: '$original_name' -> basename: '$basename'");
-            
-            // Erweiterte Suche nach Status-Files
             if (in_array($basename, ['status.xlsx', 'status.csv', 'status.xls']) ||
                 in_array($basename, ['batch_status.xlsx', 'batch_status.csv'])) {
                 $status_files[] = $file['extracted_path'];
-                $this->logger->info("✅ FOUND status file: " . $basename . " -> " . $file['extracted_path']);
-            } else {
-                $this->logger->info("❌ Not a status file: $basename");
             }
         }
         
-        $this->logger->info("Total status files found: " . count($status_files));
         return $status_files;
     }
     
@@ -362,10 +324,12 @@ class ilExFeedbackUploadHandler
     private function processStatusFiles(array $status_files, int $assignment_id, bool $is_team): void
     {
         if (empty($status_files)) {
-            throw new Exception("Keine gültigen Status-Dateien (status.xlsx, status.csv) in der ZIP gefunden. Bitte überprüfen Sie, ob die richtige ZIP-Datei hochgeladen wurde.");
+            throw new Exception("Keine gültigen Status-Dateien gefunden.");
         }
         
         try {
+            $this->clearAssignmentCaches($assignment_id);
+            
             $assignment = new \ilExAssignment($assignment_id);
             $status_file = new ilPluginExAssignmentStatusFile();
             $status_file->init($assignment);
@@ -375,13 +339,13 @@ class ilExFeedbackUploadHandler
             $load_errors = [];
             
             foreach ($status_files as $file_path) {
-                if (!file_exists($file_path)) {
-                    continue;
-                }
-                
-                $this->logger->info("Processing status file: " . basename($file_path) . " (Size: " . filesize($file_path) . " bytes)");
+                if (!file_exists($file_path)) continue;
                 
                 try {
+                    $status_file = new ilPluginExAssignmentStatusFile();
+                    $status_file->init($assignment);
+                    $status_file->allowPlagiarismUpdate(true);
+                    
                     $status_file->loadFromFile($file_path);
                     
                     if ($status_file->isLoadFromFileSuccess()) {
@@ -389,33 +353,31 @@ class ilExFeedbackUploadHandler
                             $updates = $status_file->getUpdates();
                             $updates_count = count($updates);
                             
-                            // DEBUG: Zeige gefundene Updates
-                            $this->logger->info("Found $updates_count updates:");
-                            foreach ($updates as $i => $update) {
-                                $identifier = $update['login'] ?? $update['team_id'] ?? 'unknown';
-                                $this->logger->info("Update $i: $identifier -> Status: {$update['status']}, Mark: {$update['mark']}, Comment: " . substr($update['comment'], 0, 50));
-                            }
-                            
+                            $this->clearAssignmentCaches($assignment_id);
                             $status_file->applyStatusUpdates();
+                            $this->clearAssignmentCaches($assignment_id);
                             
                             global $DIC;
                             $DIC->ui()->mainTemplate()->setOnScreenMessage('success', $status_file->getInfo(), true);
                             
                             $this->processing_stats['status_updates'] = $updates_count;
+                            $this->processing_stats['processed_file'] = basename($file_path);
+                            $this->processing_stats['timestamp'] = date('Y-m-d H:i:s');
                             $updates_applied = true;
-                            $this->logger->info("Successfully applied $updates_count status updates");
+                            
+                            // Nur erfolgreiche Updates loggen
+                            $this->logger->info("Applied $updates_count status updates from " . basename($file_path));
                             break;
+                            
                         } else {
-                            $load_errors[] = "Keine Updates in " . basename($file_path) . " gefunden - möglicherweise wurden keine Änderungen vorgenommen oder die 'update' Spalte ist nicht auf 1 gesetzt.";
-                            $this->logger->warning("No updates found in " . basename($file_path));
+                            $load_errors[] = "Keine Updates in " . basename($file_path) . " gefunden.";
                         }
                     } else {
                         if ($status_file->hasError()) {
                             $load_errors[] = "Fehler beim Laden von " . basename($file_path) . ": " . $status_file->getInfo();
-                            $this->logger->error("Error loading " . basename($file_path) . ": " . $status_file->getInfo());
+                            #$this->logger->error("Error loading " . basename($file_path) . ": " . $status_file->getInfo()); # not functioning?
                         } else {
-                            $load_errors[] = "Datei " . basename($file_path) . " konnte nicht geladen werden - möglicherweise ungültiges Format oder falsche Assignment-ID.";
-                            $this->logger->error("Failed to load " . basename($file_path));
+                            $load_errors[] = "Datei " . basename($file_path) . " konnte nicht geladen werden.";
                         }
                     }
                     
@@ -429,15 +391,51 @@ class ilExFeedbackUploadHandler
                 $error_msg = "Keine Status-Updates wurden angewendet. ";
                 if (!empty($load_errors)) {
                     $error_msg .= "Probleme: " . implode(" | ", $load_errors);
-                } else {
-                    $error_msg .= "Die hochgeladene ZIP-Datei scheint nicht zu diesem Assignment zu gehören oder enthält keine gültigen Status-Änderungen.";
                 }
                 throw new Exception($error_msg);
             }
             
+            $this->clearAssignmentCaches($assignment_id);
+            
         } catch (Exception $e) {
             $this->logger->error("Error in status file processing: " . $e->getMessage());
             throw $e;
+        }
+    }
+    
+    /**
+     * Assignment-Caches leeren
+     */
+    private function clearAssignmentCaches(int $assignment_id): void
+    {
+        try {
+            // Session-Cache leeren
+            $session_keys_to_clear = [
+                'exc_assignment_' . $assignment_id,
+                'exc_members_' . $assignment_id,
+                'exc_status_files_processed',
+                'exc_status_files_stats',
+                'exc_teams_' . $assignment_id
+            ];
+            
+            foreach ($session_keys_to_clear as $key) {
+                if (isset($_SESSION[$key])) {
+                    unset($_SESSION[$key]);
+                }
+            }
+            
+            // Globale Caches
+            if (isset($GLOBALS['assignment_cache_' . $assignment_id])) {
+                unset($GLOBALS['assignment_cache_' . $assignment_id]);
+            }
+            
+            // Garbage Collection
+            if (function_exists('gc_collect_cycles')) {
+                gc_collect_cycles();
+            }
+            
+        } catch (Exception $e) {
+            $this->logger->warning("Cache clearing failed: " . $e->getMessage());
         }
     }
     
@@ -613,7 +611,7 @@ class ilExFeedbackUploadHandler
             }
             rmdir($temp_dir);
         } catch (Exception $e) {
-            $this->logger->warning("Could not cleanup temp directory $temp_dir: " . $e->getMessage());
+            // Silent cleanup failure
         }
     }
     
@@ -625,3 +623,4 @@ class ilExFeedbackUploadHandler
         return $this->processing_stats;
     }
 }
+?>

@@ -38,7 +38,6 @@ class ilExFeedbackDownloadHandler
             $members = $parameters['members'];
             $zip = &$parameters['zip'];
             
-            // Team vs Individual Processing
             if ($assignment->getAssignmentType()->usesTeams()) {
                 $this->processTeamDownload($zip, $assignment, $members);
             } else {
@@ -55,13 +54,8 @@ class ilExFeedbackDownloadHandler
      */
     private function processTeamDownload(\ZipArchive &$zip, \ilExAssignment $assignment, array $members): void
     {
-        // Status-Files hinzufügen
         $this->addStatusFilesToZip($zip, $assignment, $members, true);
-        
-        // Team-Struktur erstellen
         $this->createTeamStructureInZip($zip, $assignment);
-        
-        // Team-README hinzufügen
         $this->addTeamReadmeToZip($zip, $assignment);
     }
     
@@ -70,7 +64,6 @@ class ilExFeedbackDownloadHandler
      */
     private function processIndividualDownload(\ZipArchive &$zip, \ilExAssignment $assignment, array $members): void
     {
-        // Status-Files hinzufügen
         $this->addStatusFilesToZip($zip, $assignment, $members, false);
     }
     
@@ -94,7 +87,6 @@ class ilExFeedbackDownloadHandler
                 $zip->addFile($temp_dir . '/status.csv', "status.csv");
             }
             
-            // Team-spezifische zusätzliche Files
             if ($is_team) {
                 $this->addTeamSpecificStatusFiles($zip, $assignment, $temp_dir);
             }
@@ -146,7 +138,6 @@ class ilExFeedbackDownloadHandler
                 $team_path = $base_name . "/Team_" . $team_id;
                 $zip->addEmptyDir($team_path);
                 
-                // User-Subdirectories für jedes Team-Mitglied
                 foreach ($team->getMembers() as $user_id) {
                     $user_dir = $this->generateUserDirectory($user_id);
                     if ($user_dir) {
@@ -155,7 +146,6 @@ class ilExFeedbackDownloadHandler
                     }
                 }
                 
-                // Team-Info-File
                 $this->addTeamInfoFile($zip, $team_path, $team);
             }
             
@@ -170,13 +160,11 @@ class ilExFeedbackDownloadHandler
     private function addTeamSpecificStatusFiles(\ZipArchive &$zip, \ilExAssignment $assignment, string $temp_dir): void
     {
         try {
-            // Team-Overview-File erstellen
             $team_overview = $this->generateTeamOverview($assignment);
             $overview_path = $temp_dir . '/team_overview.txt';
             file_put_contents($overview_path, $team_overview);
             $zip->addFile($overview_path, "team_overview.txt");
             
-            // Team-Mapping-File (für Import)
             $team_mapping = $this->generateTeamMapping($assignment);
             $mapping_path = $temp_dir . '/team_mapping.json';
             file_put_contents($mapping_path, json_encode($team_mapping, JSON_PRETTY_PRINT));
@@ -391,7 +379,8 @@ class ilExFeedbackDownloadHandler
             }
             rmdir($temp_dir);
         } catch (Exception $e) {
-            $this->logger->warning("Could not cleanup temp directory $temp_dir: " . $e->getMessage());
+            // Silent cleanup failure
         }
     }
 }
+?>
