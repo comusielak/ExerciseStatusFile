@@ -8,6 +8,8 @@ require_once __DIR__ . '/Processing/class.ilExFeedbackDownloadHandler.php';
 require_once __DIR__ . '/Processing/class.ilExFeedbackUploadHandler.php';
 require_once __DIR__ . '/Processing/class.ilExTeamDataProvider.php';
 require_once __DIR__ . '/Processing/class.ilExMultiFeedbackDownloadHandler.php';
+require_once __DIR__ . '/Processing/class.ilExUserDataProvider.php';
+require_once __DIR__ . '/Processing/class.ilExIndividualMultiFeedbackDownloadHandler.php';
 
 /**
  * Exercise Status File UI Hook
@@ -123,9 +125,17 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
             case 'get_teams':
                 $this->handleGetTeamsRequest();
                 return true;
-                
+                              
             case 'multi_feedback_upload':
                 $this->handleMultiFeedbackUploadRequest();
+                return true;
+                
+            case 'get_individual_users':
+                $this->handleGetIndividualUsersRequest();
+                return true;
+                
+            case 'multi_feedback_download_individual':
+                $this->handleMultiFeedbackDownloadIndividualRequest();
                 return true;
                 
             default:
@@ -292,6 +302,9 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
             if (strpos($assignment_info, '✅ IS TEAM') !== false) {
                 // Team Assignment -> Multi-Feedback Button
                 $renderer->renderTeamButton($assignment_id);
+            } else if (strpos($assignment_info, '❌ NOT TEAM') !== false) {
+                // Individual Assignment -> Individual Multi-Feedback Button
+                $renderer->renderIndividualButton($assignment_id);
             }
             
         } catch (Exception $e) {
@@ -401,6 +414,83 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
         }
         
         return $status;
+    }
+    
+    /**
+     * Individual-User-Daten für AJAX-Request
+     */
+    private function handleGetIndividualUsersRequest(): void
+    {
+        try {
+            $assignment_id = $_GET['ass_id'] ?? $_POST['ass_id'] ?? null;
+            
+            if (!$assignment_id || !is_numeric($assignment_id)) {
+                throw new Exception("Invalid or missing assignment ID");
+            }
+            
+            $user_provider = new ilExUserDataProvider();
+            $user_provider->generateJSONResponse((int)$assignment_id);
+            
+        } catch (Exception $e) {
+            $this->logger->error("Get individual users request error: " . $e->getMessage());
+            
+            header('Content-Type: application/json; charset=utf-8');
+            header('HTTP/1.1 500 Internal Server Error');
+            
+            echo json_encode([
+                'success' => false,
+                'error' => true,
+                'message' => 'Fehler beim Laden der User-Daten',
+                'details' => $e->getMessage()
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+    }
+
+    /**
+     * Multi-Feedback Download Individual Request Handler
+     */
+    private function handleMultiFeedbackDownloadIndividualRequest(): void
+    {
+        try {
+            $assignment_id = $_POST['ass_id'] ?? null;
+            $user_ids_string = $_POST['user_ids'] ?? '';
+            
+            if (!$assignment_id || !is_numeric($assignment_id)) {
+                throw new Exception("Invalid assignment ID");
+            }
+            
+            if (empty($user_ids_string)) {
+                throw new Exception("No users selected");
+            }
+            
+            // User-IDs parsen
+            $user_ids = array_map('intval', explode(',', $user_ids_string));
+            $user_ids = array_filter($user_ids, function($id) { return $id > 0; });
+            
+            if (empty($user_ids)) {
+                throw new Exception("No valid user IDs provided");
+            }
+            
+            // Individual Multi-Feedback Download Handler verwenden
+            $individual_handler = new ilExIndividualMultiFeedbackDownloadHandler();
+            $individual_handler->generateIndividualMultiFeedbackDownload((int)$assignment_id, $user_ids);
+            
+        } catch (Exception $e) {
+            $this->logger->error("Individual Multi-Feedback download error: " . $e->getMessage());
+            
+            global $DIC;
+            if (isset($DIC['tpl'])) {
+                $tpl = $DIC->ui()->mainTemplate();
+                $tpl->setOnScreenMessage('failure', "Fehler beim Individual Multi-Feedback-Download: " . $e->getMessage(), true);
+            }
+            
+            // Redirect zurück zur Members-Seite
+            if (isset($DIC['ilCtrl'])) {
+                $ctrl = $DIC->ctrl();
+                $ctrl->redirect(null, 'members');
+            }
+        }
     }
 }
 ?>

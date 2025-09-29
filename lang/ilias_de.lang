@@ -3,3 +3,172 @@ plugin_description#:#Erweitert Übungen um automatische Status-File-Funktionalit
 status_files_added#:#Status-Dateien wurden zum Download hinzugefügt
 status_files_processed#:#Status-Dateien wurden erfolgreich verarbeitet
 status_processing_error#:#Fehler beim Verarbeiten der Status-Dateien
+
+<!-- Multi-Feedback Modal -->
+modal_download_tab#:#Download
+modal_upload_tab#:#Upload
+modal_close_btn#:#Schließen
+
+<!-- Team Multi-Feedback -->
+team_multi_feedback_title#:#Multi-Feedback (Teams)
+team_loading#:#Teams werden geladen...
+team_select_for_download#:#Teams für Download auswählen
+team_select_all#:#Alle Teams auswählen
+team_selected_count#:#Teams ausgewählt
+team_download_start#:#Download starten
+team_download_generating#:#Multi-Feedback wird generiert...
+team_download_auto#:#Download startet automatisch...
+team_no_teams_found#:#Keine Teams gefunden
+team_error_loading#:#Fehler beim Laden der Teams
+team_reload_page#:#Seite neu laden
+team_member_count#:#Mitglieder
+team_status#:#Status
+
+<!-- Individual Multi-Feedback -->
+individual_multi_feedback_title#:#Multi-Feedback (Individual)
+individual_loading#:#Teilnehmer werden geladen...
+individual_select_for_download#:#Teilnehmer für Download auswählen
+individual_select_all#:#Alle Teilnehmer auswählen
+individual_selected_count#:#Teilnehmer ausgewählt
+individual_download_start#:#Download starten
+individual_download_generating#:#Individual Multi-Feedback wird generiert...
+individual_no_users_found#:#Keine Teilnehmer gefunden
+individual_error_loading#:#Fehler beim Laden der Teilnehmer
+individual_submission_available#:#Abgabe vorhanden
+individual_no_submission#:#Keine Abgabe
+
+<!-- Upload -->
+upload_title#:#Bearbeitete ZIP hochladen
+upload_select_file#:#ZIP-Datei auswählen
+upload_select_file_desc#:#Wähle die bearbeitete Multi-Feedback ZIP-Datei
+upload_file_selected#:#Ausgewählte Datei
+upload_file_ready#:#ZIP-Datei bereit für Upload
+upload_file_validation_detail#:#Detaillierte Validierung erfolgt beim Upload
+upload_hint#:#Status-Updates in der Excel/CSV-Datei editieren
+upload_start#:#Upload starten
+upload_in_progress#:#Upload läuft...
+upload_progress#:#wird hochgeladen
+upload_success#:#Upload erfolgreich!
+upload_success_message#:#Die Status-Updates wurden verarbeitet.
+upload_success_reload#:#Die Seite wird automatisch neu geladen...
+upload_error#:#Upload fehlgeschlagen
+upload_retry#:#Erneut versuchen
+upload_select_file_first#:#Bitte wähle zuerst eine ZIP-Datei aus.
+
+<!-- File Validation -->
+file_error_title#:#Datei-Fehler
+file_error_empty#:#Die ausgewählte Datei ist leer.
+file_error_too_small#:#Die Datei ist zu klein, um ein gültiges ZIP-Archiv zu sein.
+file_error_too_large#:#Die ZIP-Datei ist zu groß (max. 100MB).
+file_error_not_zip#:#Bitte wählen Sie eine ZIP-Datei aus.
+file_error_current_file#:#Aktuelle Datei
+file_error_unknown_type#:#unbekannter Typ
+file_error_select_other#:#Andere ZIP-Datei auswählen
+file_error_must_contain#:#ZIP muss Status-Dateien und User/Team-Ordner enthalten
+file_size_bytes#:#Bytes
+file_size_kb#:#KB
+file_size_mb#:#MB
+file_size_gb#:#GB
+file_info_size#:#Größe
+file_info_type#:#Typ
+file_info_modified#:#Geändert
+
+<!-- Errors and Messages -->
+error_http#:#HTTP Fehler
+error_network#:#Netzwerkfehler
+error_no_teams_selected#:#Bitte wähle mindestens ein Team aus.
+error_no_users_selected#:#Bitte wähle mindestens einen Teilnehmer aus.
+error_invalid_assignment#:#Ungültige Assignment-ID
+error_no_users#:#Keine User ausgewählt
+error_multi_feedback_download#:#Fehler beim Multi-Feedback-Download
+error_multi_feedback_upload#:#Fehler beim Multi-Feedback-Upload
+error_invalid_zip#:#Die hochgeladene Datei ist kein gültiges ZIP-Archiv
+error_zip_empty#:#Das ZIP-Archiv ist leer
+error_no_status_files#:#Keine Status-Dateien im ZIP gefunden
+error_team_structure_required#:#Team-Assignment benötigt Team-Ordner
+error_individual_structure_forbidden#:#Individual-Assignment darf keine Team-Ordner enthalten
+error_no_user_folders#:#Keine User-Ordner im ZIP gefunden
+error_multi_feedback_generation#:#Fehler beim Generieren des Multi-Feedbacks
+
+<!-- Status Labels -->
+status_passed#:#Bestanden
+status_failed#:#Nicht bestanden
+status_notgraded#:#Nicht bewertet
+
+<!-- Buttons -->
+btn_multi_feedback#:#Multi-Feedback
+btn_download#:#Download
+btn_upload#:#Upload
+btn_close#:#Schließen
+btn_cancel#:#Abbrechen
+btn_start_download#:#Download starten
+btn_start_upload#:#Upload starten
+
+<!-- Progress -->
+progress_assignment#:#Assignment
+progress_teams#:#Teams
+progress_users#:#Teilnehmer
+progress_selected#:#ausgewählt
+progress_generating#:#wird generiert
+
+<!-- Info Messages -->
+info_non_team_assignment#:#ist kein Team-Assignment. Multi-Feedback ist nur für Team-Assignments verfügbar.
+info_plugin_active#:#Plugin aktiv - keine Assignment ID gefunden.
+
+<!-- Download README -->
+readme_title#:#Multi-Feedback
+readme_information#:#Informationen
+readme_assignment#:#Assignment
+readme_teams#:#Teams
+readme_users#:#Teilnehmer
+readme_selected#:#ausgewählt
+readme_generated#:#Generiert
+readme_plugin#:#Plugin
+readme_structure#:#Struktur
+readme_workflow#:#Workflow
+readme_workflow_edit_status#:#Status bearbeiten
+readme_workflow_edit_status_desc#:#Öffne
+readme_workflow_add_feedback#:#Feedback hinzufügen
+readme_workflow_add_feedback_desc#:#Lege Feedback-Files in die entsprechenden User-Ordner
+readme_workflow_reupload#:#Re-Upload
+readme_workflow_reupload_desc#:#ZIP komplett wieder hochladen
+readme_team_overview#:#Team-Übersicht
+readme_user_overview#:#User-Übersicht
+readme_status#:#Status
+readme_members#:#Mitglieder
+readme_note#:#Note
+readme_submission#:#Abgabe
+readme_yes#:#Ja
+readme_no#:#Nein
+readme_generated_by#:#Generiert durch ExerciseStatusFile Plugin
+readme_or#:#oder
+readme_info_assignment#:#Assignment
+readme_info_teams_count#:#Teams
+readme_info_users_count#:#Teilnehmer
+readme_info_id#:#ID
+readme_info_generated_at#:#Generiert
+readme_info_plugin_version#:#Plugin
+readme_structure_title#:#Struktur
+readme_structure_status_xlsx#:#Status-File (Excel)
+readme_structure_status_csv#:#Status-File (CSV)
+readme_structure_team_info_json#:#Team-Informationen
+readme_structure_user_info_json#:#User-Informationen
+readme_structure_team_mapping#:#Team-Mapping
+readme_structure_user_mapping#:#User-Mapping
+readme_structure_statistics#:#Statistiken
+readme_structure_readme#:#Diese Datei
+readme_structure_per_team#:#Pro Team
+readme_structure_per_user#:#Pro User
+readme_structure_team_info_txt#:#Team-Informationen
+readme_structure_user_info_txt#:#User-Informationen
+readme_structure_per_member#:#Pro Team-Mitglied
+readme_structure_submissions#:#Abgabe-Files
+readme_workflow_step1#:#Status bearbeiten
+readme_workflow_step1_desc#:#Öffne %s oder %s
+readme_workflow_step2#:#Feedback hinzufügen
+readme_workflow_step2_desc#:#Lege Feedback-Files in die entsprechenden User-Ordner
+readme_workflow_step3#:#Re-Upload
+readme_workflow_step3_desc#:#ZIP komplett wieder hochladen
+readme_member#:#Mitglied
+readme_login#:#Login
+readme_id#:#ID

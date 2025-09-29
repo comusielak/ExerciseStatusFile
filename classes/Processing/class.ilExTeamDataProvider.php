@@ -14,12 +14,24 @@ class ilExTeamDataProvider
 {
     private ilLogger $logger;
     private ilDBInterface $db;
+    private ilExerciseStatusFilePlugin $plugin;
     
     public function __construct()
     {
         global $DIC;
         $this->logger = $DIC->logger()->root();
         $this->db = $DIC->database();
+        
+        // Plugin-Instanz für Übersetzungen
+        $plugin_id = 'exstatusfile';
+
+        $repo = $DIC['component.repository'];
+        $factory = $DIC['component.factory'];
+
+        $info = $repo->getPluginById($plugin_id);
+        if ($info !== null && $info->isActive()) {
+            $this->plugin = $factory->getPlugin($plugin_id);
+        }
     }
     
     /**
@@ -167,12 +179,12 @@ class ilExTeamDataProvider
     {
         switch ($status) {
             case 'passed':
-                return 'Bestanden';
+                return $this->plugin->txt('status_passed');
             case 'failed':
-                return 'Nicht bestanden';
+                return $this->plugin->txt('status_failed');
             case 'notgraded':
             default:
-                return 'Nicht bewertet';
+                return $this->plugin->txt('status_notgraded');
         }
     }
     
@@ -182,7 +194,7 @@ class ilExTeamDataProvider
     private function getDefaultStatus(): array
     {
         return [
-            'status' => 'Nicht bewertet',
+            'status' => $this->plugin->txt('status_notgraded'),
             'mark' => '',
             'notice' => '',
             'comment' => ''
@@ -212,7 +224,7 @@ class ilExTeamDataProvider
             
             echo json_encode([
                 'error' => true,
-                'message' => 'Fehler beim Laden der Team-Daten',
+                'message' => $this->plugin->txt('team_error_loading'),
                 'details' => $e->getMessage()
             ], JSON_UNESCAPED_UNICODE);
             exit;
