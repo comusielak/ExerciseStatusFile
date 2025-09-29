@@ -59,14 +59,22 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
     }
 
     /**
-     * GUI Modifikation mit AJAX-Support
+     * GUI Modifikation mit AJAX-Support - FIXED VERSION
      */
     public function modifyGUI(string $a_comp, string $a_part, array $a_par = []): void
     {
+        try {
+            // AJAX-Requests IMMER ZUERST abfangen (vor allen Checks!)
+            // AJAX-Requests brauchen kein vollständiges Template
+            if ($this->handleAJAXRequests()) {
+                return;
+            }
+            
             global $DIC;
             
-            // AJAX-Requests abfangen
-            if ($this->handleAJAXRequests()) {
+            // Prüfe ob DIC vollständig initialisiert ist (nur für UI-Rendering)
+            if (!isset($DIC['ilCtrl']) || !isset($DIC['ui.factory'])) {
+                // Zu früh im Init-Prozess - ignorieren (aber AJAX wurde schon verarbeitet)
                 return;
             }
             
@@ -83,8 +91,15 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
             $detector = new ilExAssignmentDetector();
             $assignment_id = $detector->detectAssignmentId();
             
-            // UI-Rendering
-            $this->renderUI($assignment_id);
+            // UI-Rendering nur wenn Template verfügbar
+            if (isset($DIC['tpl'])) {
+                $this->renderUI($assignment_id);
+            }
+            
+        } catch (Exception $e) {
+            // Fehler nur loggen, nicht werfen (würde sonst ILIAS-Init unterbrechen)
+            $this->logger->error("UI Hook error: " . $e->getMessage());
+        }
     }
     
     /**
@@ -234,37 +249,53 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
             $this->logger->error("Multi-Feedback download error: " . $e->getMessage());
             
             global $DIC;
-            $tpl = $DIC->ui()->mainTemplate();
-            $tpl->setOnScreenMessage('failure', "Fehler beim Multi-Feedback-Download: " . $e->getMessage(), true);
+            if (isset($DIC['tpl'])) {
+                $tpl = $DIC->ui()->mainTemplate();
+                $tpl->setOnScreenMessage('failure', "Fehler beim Multi-Feedback-Download: " . $e->getMessage(), true);
+            }
             
             // Redirect zurück zur Members-Seite
-            $ctrl = $DIC->ctrl();
-            $ctrl->redirect(null, 'members');
+            if (isset($DIC['ilCtrl'])) {
+                $ctrl = $DIC->ctrl();
+                $ctrl->redirect(null, 'members');
+            }
         }
     }
     
     /**
-     * UI Rendering
+     * UI Rendering - nur wenn Template verfügbar
      */
     private function renderUI(?int $assignment_id): void
     {
-        $renderer = new ilExTeamButtonRenderer();
+        global $DIC;
         
-        // JavaScript-Funktionen registrieren
-        $renderer->registerGlobalJavaScriptFunctions();
-        $renderer->addCustomCSS();
-        
-        if ($assignment_id === null) {
-            $renderer->renderDebugBox();
+        // Prüfe ob Template verfügbar ist
+        if (!isset($DIC['tpl']) || !isset($DIC['ui.factory'])) {
             return;
         }
         
-        // Assignment-Info prüfen
-        $assignment_info = $this->getAssignmentInfo($assignment_id);
-        
-        if (strpos($assignment_info, '✅ IS TEAM') !== false) {
-            // Team Assignment -> Multi-Feedback Button
-            $renderer->renderTeamButton($assignment_id);
+        try {
+            $renderer = new ilExTeamButtonRenderer();
+            
+            // JavaScript-Funktionen registrieren
+            $renderer->registerGlobalJavaScriptFunctions();
+            $renderer->addCustomCSS();
+            
+            if ($assignment_id === null) {
+                $renderer->renderDebugBox();
+                return;
+            }
+            
+            // Assignment-Info prüfen
+            $assignment_info = $this->getAssignmentInfo($assignment_id);
+            
+            if (strpos($assignment_info, '✅ IS TEAM') !== false) {
+                // Team Assignment -> Multi-Feedback Button
+                $renderer->renderTeamButton($assignment_id);
+            }
+            
+        } catch (Exception $e) {
+            $this->logger->error("UI rendering error: " . $e->getMessage());
         }
     }
     
@@ -321,8 +352,12 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
      */
     public function cleanup(): void
     {
-        $renderer = new ilExTeamButtonRenderer();
-        $renderer->cleanup();
+        try {
+            $renderer = new ilExTeamButtonRenderer();
+            $renderer->cleanup();
+        } catch (Exception $e) {
+            // Ignoriere Cleanup-Fehler
+        }
     }
     
     /**
@@ -368,3 +403,4 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
         return $status;
     }
 }
+?>
