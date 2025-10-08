@@ -1,174 +1,174 @@
-exstatusfile_plugin_name#:#Exercise Status File
-exstatusfile_plugin_description#:#Extends exercises with automatic status file functionality for multi-feedback
-exstatusfile_status_files_added#:#Status files were added to download
-exstatusfile_status_files_processed#:#Status files were processed successfully
-exstatusfile_status_processing_error#:#Error processing status files
+plugin_name#:#Exercise Status File
+plugin_description#:#Extends exercises with automatic status file functionality for multi-feedback
+status_files_added#:#Status files were added to download
+status_files_processed#:#Status files were processed successfully
+status_processing_error#:#Error processing status files
 
 <!-- Multi-Feedback Modal -->
-exstatusfile_modal_download_tab#:#Download
-exstatusfile_modal_upload_tab#:#Upload
-exstatusfile_modal_close_btn#:#Close
+modal_download_tab#:#Download
+modal_upload_tab#:#Upload
+modal_close_btn#:#Close
 
 <!-- Team Multi-Feedback -->
-exstatusfile_team_multi_feedback_title#:#Multi-Feedback (Teams)
-exstatusfile_team_loading#:#Loading teams...
-exstatusfile_team_select_for_download#:#Select teams for download
-exstatusfile_team_select_all#:#Select all teams
-exstatusfile_team_selected_count#:#teams selected
-exstatusfile_team_download_start#:#Start download
-exstatusfile_team_download_generating#:#Multi-feedback is being generated...
-exstatusfile_team_download_auto#:#Download starts automatically...
-exstatusfile_team_no_teams_found#:#No teams found
-exstatusfile_team_error_loading#:#Error loading teams
-exstatusfile_team_reload_page#:#Reload page
-exstatusfile_team_member_count#:#Members
-exstatusfile_team_status#:#Status
+team_multi_feedback_title#:#Multi-Feedback (Teams)
+team_loading#:#Loading teams...
+team_select_for_download#:#Select teams for download
+team_select_all#:#Select all teams
+team_selected_count#:#teams selected
+team_download_start#:#Start download
+team_download_generating#:#Multi-feedback is being generated...
+team_download_auto#:#Download starts automatically...
+team_no_teams_found#:#No teams found
+team_error_loading#:#Error loading teams
+team_reload_page#:#Reload page
+team_member_count#:#Members
+team_status#:#Status
 
 <!-- Individual Multi-Feedback -->
-exstatusfile_individual_multi_feedback_title#:#Multi-Feedback (Individual)
-exstatusfile_individual_loading#:#Loading participants...
-exstatusfile_individual_select_for_download#:#Select participants for download
-exstatusfile_individual_select_all#:#Select all participants
-exstatusfile_individual_selected_count#:#participants selected
-exstatusfile_individual_download_start#:#Start download
-exstatusfile_individual_download_generating#:#Individual multi-feedback is being generated...
-exstatusfile_individual_no_users_found#:#No participants found
-exstatusfile_individual_error_loading#:#Error loading participants
-exstatusfile_individual_submission_available#:#Submission available
-exstatusfile_individual_no_submission#:#No submission
+individual_multi_feedback_title#:#Multi-Feedback (Individual)
+individual_loading#:#Loading participants...
+individual_select_for_download#:#Select participants for download
+individual_select_all#:#Select all participants
+individual_selected_count#:#participants selected
+individual_download_start#:#Start download
+individual_download_generating#:#Individual multi-feedback is being generated...
+individual_no_users_found#:#No participants found
+individual_error_loading#:#Error loading participants
+individual_submission_available#:#Submission available
+individual_no_submission#:#No submission
 
 <!-- Upload -->
-exstatusfile_upload_title#:#Upload edited ZIP
-exstatusfile_upload_select_file#:#Select ZIP file
-exstatusfile_upload_select_file_desc#:#Select the edited multi-feedback ZIP file
-exstatusfile_upload_file_selected#:#Selected file
-exstatusfile_upload_file_ready#:#ZIP file ready for upload
-exstatusfile_upload_file_validation_detail#:#Detailed validation will occur during upload
-exstatusfile_upload_hint#:#Edit status updates in the Excel/CSV file
-exstatusfile_upload_start#:#Start upload
-exstatusfile_upload_in_progress#:#Upload in progress...
-exstatusfile_upload_progress#:#is being uploaded
-exstatusfile_upload_success#:#Upload successful!
-exstatusfile_upload_success_message#:#Status updates have been processed.
-exstatusfile_upload_success_reload#:#The page will reload automatically...
-exstatusfile_upload_error#:#Upload failed
-exstatusfile_upload_retry#:#Try again
-exstatusfile_upload_select_file_first#:#Please select a ZIP file first.
+upload_title#:#Upload edited ZIP
+upload_select_file#:#Select ZIP file
+upload_select_file_desc#:#Select the edited multi-feedback ZIP file
+upload_file_selected#:#Selected file
+upload_file_ready#:#ZIP file ready for upload
+upload_file_validation_detail#:#Detailed validation will occur during upload
+upload_hint#:#Edit status updates in the Excel/CSV file
+upload_start#:#Start upload
+upload_in_progress#:#Upload in progress...
+upload_progress#:#is being uploaded
+upload_success#:#Upload successful!
+upload_success_message#:#Status updates have been processed.
+upload_success_reload#:#The page will reload automatically...
+upload_error#:#Upload failed
+upload_retry#:#Try again
+upload_select_file_first#:#Please select a ZIP file first.
 
 <!-- File Validation -->
-exstatusfile_file_error_title#:#File Error
-exstatusfile_file_error_empty#:#The selected file is empty.
-exstatusfile_file_error_too_small#:#The file is too small to be a valid ZIP archive.
-exstatusfile_file_error_too_large#:#The ZIP file is too large (max. 100MB).
-exstatusfile_file_error_not_zip#:#Please select a ZIP file.
-exstatusfile_file_error_current_file#:#Current file
-exstatusfile_file_error_unknown_type#:#unknown type
-exstatusfile_file_error_select_other#:#Select another ZIP file
-exstatusfile_file_error_must_contain#:#ZIP must contain status files and user/team folders
-exstatusfile_file_size_bytes#:#Bytes
-exstatusfile_file_size_kb#:#KB
-exstatusfile_file_size_mb#:#MB
-exstatusfile_file_size_gb#:#GB
-exstatusfile_file_info_size#:#Size
-exstatusfile_file_info_type#:#Type
-exstatusfile_file_info_modified#:#Modified
+file_error_title#:#File Error
+file_error_empty#:#The selected file is empty.
+file_error_too_small#:#The file is too small to be a valid ZIP archive.
+file_error_too_large#:#The ZIP file is too large (max. 100MB).
+file_error_not_zip#:#Please select a ZIP file.
+file_error_current_file#:#Current file
+file_error_unknown_type#:#unknown type
+file_error_select_other#:#Select another ZIP file
+file_error_must_contain#:#ZIP must contain status files and user/team folders
+file_size_bytes#:#Bytes
+file_size_kb#:#KB
+file_size_mb#:#MB
+file_size_gb#:#GB
+file_info_size#:#Size
+file_info_type#:#Type
+file_info_modified#:#Modified
 
 <!-- Errors and Messages -->
-exstatusfile_error_http#:#HTTP Error
-exstatusfile_error_network#:#Network Error
-exstatusfile_error_no_teams_selected#:#Please select at least one team.
-exstatusfile_error_no_users_selected#:#Please select at least one participant.
-exstatusfile_error_invalid_assignment#:#Invalid assignment ID
-exstatusfile_error_no_users#:#No users selected
-exstatusfile_error_multi_feedback_download#:#Error during multi-feedback download
-exstatusfile_error_multi_feedback_upload#:#Error during multi-feedback upload
-exstatusfile_error_invalid_zip#:#The uploaded file is not a valid ZIP archive
-exstatusfile_error_zip_empty#:#The ZIP archive is empty
-exstatusfile_error_no_status_files#:#No status files found in ZIP
-exstatusfile_error_team_structure_required#:#Team assignment requires team folders
-exstatusfile_error_individual_structure_forbidden#:#Individual assignment must not contain team folders
-exstatusfile_error_no_user_folders#:#No user folders found in ZIP
-exstatusfile_error_multi_feedback_generation#:#Error generating multi-feedback
+error_http#:#HTTP Error
+error_network#:#Network Error
+error_no_teams_selected#:#Please select at least one team.
+error_no_users_selected#:#Please select at least one participant.
+error_invalid_assignment#:#Invalid assignment ID
+error_no_users#:#No users selected
+error_multi_feedback_download#:#Error during multi-feedback download
+error_multi_feedback_upload#:#Error during multi-feedback upload
+error_invalid_zip#:#The uploaded file is not a valid ZIP archive
+error_zip_empty#:#The ZIP archive is empty
+error_no_status_files#:#No status files found in ZIP
+error_team_structure_required#:#Team assignment requires team folders
+error_individual_structure_forbidden#:#Individual assignment must not contain team folders
+error_no_user_folders#:#No user folders found in ZIP
+error_multi_feedback_generation#:#Error generating multi-feedback
 
 <!-- Status Labels -->
-exstatusfile_status_passed#:#Passed
-exstatusfile_status_failed#:#Failed
-exstatusfile_status_notgraded#:#Not graded
+status_passed#:#Passed
+status_failed#:#Failed
+status_notgraded#:#Not graded
 
 <!-- Buttons -->
-exstatusfile_btn_multi_feedback#:#Multi-Feedback
-exstatusfile_btn_download#:#Download
-exstatusfile_btn_upload#:#Upload
-exstatusfile_btn_close#:#Close
-exstatusfile_btn_cancel#:#Cancel
-exstatusfile_btn_start_download#:#Start download
-exstatusfile_btn_start_upload#:#Start upload
+btn_multi_feedback#:#Multi-Feedback
+btn_download#:#Download
+btn_upload#:#Upload
+btn_close#:#Close
+btn_cancel#:#Cancel
+btn_start_download#:#Start download
+btn_start_upload#:#Start upload
 
 <!-- Progress -->
-exstatusfile_progress_assignment#:#Assignment
-exstatusfile_progress_teams#:#Teams
-exstatusfile_progress_users#:#Participants
-exstatusfile_progress_selected#:#selected
-exstatusfile_progress_generating#:#is being generated
+progress_assignment#:#Assignment
+progress_teams#:#Teams
+progress_users#:#Participants
+progress_selected#:#selected
+progress_generating#:#is being generated
 
 <!-- Info Messages -->
-exstatusfile_info_non_team_assignment#:#is not a team assignment. Multi-feedback is only available for team assignments.
-exstatusfile_info_plugin_active#:#Plugin active - no assignment ID found.
+info_non_team_assignment#:#is not a team assignment. Multi-feedback is only available for team assignments.
+info_plugin_active#:#Plugin active - no assignment ID found.
 
 <!-- Download README -->
-exstatusfile_readme_title#:#Multi-Feedback
-exstatusfile_readme_information#:#Information
-exstatusfile_readme_assignment#:#Assignment
-exstatusfile_readme_teams#:#Teams
-exstatusfile_readme_users#:#Participants
-exstatusfile_readme_selected#:#selected
-exstatusfile_readme_generated#:#Generated
-exstatusfile_readme_plugin#:#Plugin
-exstatusfile_readme_structure#:#Structure
-exstatusfile_readme_workflow#:#Workflow
-exstatusfile_readme_workflow_edit_status#:#Edit status
-exstatusfile_readme_workflow_edit_status_desc#:#Open
-exstatusfile_readme_workflow_add_feedback#:#Add feedback
-exstatusfile_readme_workflow_add_feedback_desc#:#Place feedback files in the corresponding user folders
-exstatusfile_readme_workflow_reupload#:#Re-upload
-exstatusfile_readme_workflow_reupload_desc#:#Upload complete ZIP again
-exstatusfile_readme_team_overview#:#Team Overview
-exstatusfile_readme_user_overview#:#User Overview
-exstatusfile_readme_status#:#Status
-exstatusfile_readme_members#:#Members
-exstatusfile_readme_note#:#Grade
-exstatusfile_readme_submission#:#Submission
-exstatusfile_readme_yes#:#Yes
-exstatusfile_readme_no#:#No
-exstatusfile_readme_generated_by#:#Generated by ExerciseStatusFile Plugin
-exstatusfile_readme_or#:#or
-exstatusfile_readme_info_assignment#:#Assignment
-exstatusfile_readme_info_teams_count#:#Teams
-exstatusfile_readme_info_users_count#:#Participants
-exstatusfile_readme_info_id#:#ID
-exstatusfile_readme_info_generated_at#:#Generated
-exstatusfile_readme_info_plugin_version#:#Plugin
-exstatusfile_readme_structure_title#:#Structure
-exstatusfile_readme_structure_status_xlsx#:#Status file (Excel)
-exstatusfile_readme_structure_status_csv#:#Status file (CSV)
-exstatusfile_readme_structure_team_info_json#:#Team information
-exstatusfile_readme_structure_user_info_json#:#User information
-exstatusfile_readme_structure_team_mapping#:#Team mapping
-exstatusfile_readme_structure_user_mapping#:#User mapping
-exstatusfile_readme_structure_statistics#:#Statistics
-exstatusfile_readme_structure_readme#:#This file
-exstatusfile_readme_structure_per_team#:#Per team
-exstatusfile_readme_structure_per_user#:#Per user
-exstatusfile_readme_structure_team_info_txt#:#Team information
-exstatusfile_readme_structure_user_info_txt#:#User information
-exstatusfile_readme_structure_per_member#:#Per team member
-exstatusfile_readme_structure_submissions#:#Submission files
-exstatusfile_readme_workflow_step1#:#Edit status
-exstatusfile_readme_workflow_step1_desc#:#Open %s or %s
-exstatusfile_readme_workflow_step2#:#Add feedback
-exstatusfile_readme_workflow_step2_desc#:#Place feedback files in the corresponding user folders
-exstatusfile_readme_workflow_step3#:#Re-upload
-exstatusfile_readme_workflow_step3_desc#:#Upload complete ZIP again
-exstatusfile_readme_member#:#Member
-exstatusfile_readme_login#:#Login
-exstatusfile_readme_id#:#ID
+readme_title#:#Multi-Feedback
+readme_information#:#Information
+readme_assignment#:#Assignment
+readme_teams#:#Teams
+readme_users#:#Participants
+readme_selected#:#selected
+readme_generated#:#Generated
+readme_plugin#:#Plugin
+readme_structure#:#Structure
+readme_workflow#:#Workflow
+readme_workflow_edit_status#:#Edit status
+readme_workflow_edit_status_desc#:#Open
+readme_workflow_add_feedback#:#Add feedback
+readme_workflow_add_feedback_desc#:#Place feedback files in the corresponding user folders
+readme_workflow_reupload#:#Re-upload
+readme_workflow_reupload_desc#:#Upload complete ZIP again
+readme_team_overview#:#Team Overview
+readme_user_overview#:#User Overview
+readme_status#:#Status
+readme_members#:#Members
+readme_note#:#Grade
+readme_submission#:#Submission
+readme_yes#:#Yes
+readme_no#:#No
+readme_generated_by#:#Generated by ExerciseStatusFile Plugin
+readme_or#:#or
+readme_info_assignment#:#Assignment
+readme_info_teams_count#:#Teams
+readme_info_users_count#:#Participants
+readme_info_id#:#ID
+readme_info_generated_at#:#Generated
+readme_info_plugin_version#:#Plugin
+readme_structure_title#:#Structure
+readme_structure_status_xlsx#:#Status file (Excel)
+readme_structure_status_csv#:#Status file (CSV)
+readme_structure_team_info_json#:#Team information
+readme_structure_user_info_json#:#User information
+readme_structure_team_mapping#:#Team mapping
+readme_structure_user_mapping#:#User mapping
+readme_structure_statistics#:#Statistics
+readme_structure_readme#:#This file
+readme_structure_per_team#:#Per team
+readme_structure_per_user#:#Per user
+readme_structure_team_info_txt#:#Team information
+readme_structure_user_info_txt#:#User information
+readme_structure_per_member#:#Per team member
+readme_structure_submissions#:#Submission files
+readme_workflow_step1#:#Edit status
+readme_workflow_step1_desc#:#Open %s or %s
+readme_workflow_step2#:#Add feedback
+readme_workflow_step2_desc#:#Place feedback files in the corresponding user folders
+readme_workflow_step3#:#Re-upload
+readme_workflow_step3_desc#:#Upload complete ZIP again
+readme_member#:#Member
+readme_login#:#Login
+readme_id#:#ID
