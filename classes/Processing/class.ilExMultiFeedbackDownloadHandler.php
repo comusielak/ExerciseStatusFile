@@ -103,7 +103,6 @@ class ilExMultiFeedbackDownloadHandler
             $this->addStatusFiles($zip, $assignment, $teams, $temp_dir);
             $this->addTeamSubmissionsFromArrays($zip, $assignment, $teams);
             $this->addReadme($zip, $assignment, $teams, $temp_dir);
-            $this->addMetadata($zip, $assignment, $teams, $temp_dir);
             
             $zip->close();
             return $zip_path;
@@ -126,7 +125,6 @@ class ilExMultiFeedbackDownloadHandler
             $team_folder = $base_name . "/Team_" . $team_id;
             
             $zip->addEmptyDir($team_folder);
-            $this->addTeamInfoToZip($zip, $team_folder, $team_data);
             
             // WICHTIG: Sammle ALLE Submissions von ALLEN Team-Mitgliedern
             $all_team_submissions = $this->collectAllTeamSubmissions($assignment->getId(), $team_data['members']);
@@ -263,12 +261,6 @@ class ilExMultiFeedbackDownloadHandler
         if ($status_file->isWriteToFileSuccess() && file_exists($csv_path)) {
             $zip->addFile($csv_path, "status.csv");
         }
-        
-        // Team-Info
-        $team_info = $this->generateTeamInfo($assignment, $teams);
-        $info_path = $temp_dir . '/team_info.json';
-        file_put_contents($info_path, json_encode($team_info, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-        $zip->addFile($info_path, "team_info.json");
     }
     
     /**
@@ -661,37 +653,30 @@ class ilExMultiFeedbackDownloadHandler
         }
         
         $team_count = count($teams);
-        $team_ids = implode(', ', array_column($teams, 'team_id'));
         
         return "# " . $this->plugin->txt('readme_title') . " - " . $assignment->getTitle() . "\n\n" .
                "## " . $this->plugin->txt('readme_information') . "\n\n" .
-               "- **" . $this->plugin->txt('readme_assignment') . ":** " . $assignment->getTitle() . " (" . $this->plugin->txt('readme_id') . ": " . $assignment->getId() . ")\n" .
-               "- **" . $this->plugin->txt('readme_teams') . ":** $team_count " . $this->plugin->txt('readme_selected') . " (" . $this->plugin->txt('readme_id') . "s: $team_ids)\n" .
-               "- **" . $this->plugin->txt('readme_generated') . ":** " . date('Y-m-d H:i:s') . "\n" .
-               "- **" . $this->plugin->txt('readme_plugin') . ":** ExerciseStatusFile v1.1.1\n\n" .
+               "- **" . $this->plugin->txt('readme_assignment') . ":** " . $assignment->getTitle() . "\n" .
+               "- **" . $this->plugin->txt('readme_teams') . ":** $team_count " . $this->plugin->txt('readme_selected') . "\n" .
+               "- **" . $this->plugin->txt('readme_generated') . ":** " . date('Y-m-d H:i:s') . "\n\n" .
                "## " . $this->plugin->txt('readme_structure') . "\n\n" .
                "```\n" .
                "Multi_Feedback_[Assignment]_[TeamCount]_Teams/\n" .
                "├── status.xlsx                # " . $this->plugin->txt('readme_structure_status_xlsx') . "\n" .
                "├── status.csv                 # " . $this->plugin->txt('readme_structure_status_csv') . "\n" .
-               "├── team_info.json             # " . $this->plugin->txt('readme_structure_team_info_json') . "\n" .
-               "├── team_mapping.json          # " . $this->plugin->txt('readme_structure_team_mapping') . "\n" .
-               "├── statistics.json            # " . $this->plugin->txt('readme_structure_statistics') . "\n" .
                "├── README.md                  # " . $this->plugin->txt('readme_structure_readme') . "\n" .
                "└── Team_[ID]/                 # " . $this->plugin->txt('readme_structure_per_team') . "\n" .
-               "    ├── team_info.txt          # " . $this->plugin->txt('readme_structure_team_info_txt') . "\n" .
                "    └── [Lastname_Firstname_Login_ID]/  # " . $this->plugin->txt('readme_structure_per_member') . "\n" .
                "        └── [Submissions]      # " . $this->plugin->txt('readme_structure_submissions') . "\n" .
                "```\n\n" .
                "## " . $this->plugin->txt('readme_workflow') . "\n\n" .
                "1. **" . $this->plugin->txt('readme_workflow_step1') . ":** " . 
-                   sprintf($this->plugin->txt('readme_workflow_step1_desc'), '`status.xlsx`', '`status.csv`') . "\n" .
-               "2. **" . $this->plugin->txt('readme_workflow_step2') . ":** " . $this->plugin->txt('readme_workflow_step2_desc') . "\n" .
+                   sprintf($this->plugin->txt('readme_workflow_step1_desc'), '`status.xlsx`', '`status.csv`') . 
+                   " Bei `update` eine `1` eintragen, wenn die entsprechende Zeile aktualisiert werden soll.\n" .
+               "2. **" . $this->plugin->txt('readme_workflow_step2') . ":** " . $this->plugin->txt('readme_workflow_step2_desc') . " *(Noch in Entwicklung)*\n" .
                "3. **" . $this->plugin->txt('readme_workflow_step3') . ":** " . $this->plugin->txt('readme_workflow_step3_desc') . "\n\n" .
                "## " . $this->plugin->txt('readme_team_overview') . "\n\n" .
-               $this->generateTeamOverviewForReadme($teams) . "\n\n" .
-               "---\n" .
-               "*" . $this->plugin->txt('readme_generated_by') . "*\n";
+               $this->generateTeamOverviewForReadme($teams) . "\n";
     }
     
     /**
@@ -700,14 +685,26 @@ class ilExMultiFeedbackDownloadHandler
     private function generateReadmeContentFallback(\ilExAssignment $assignment, array $teams): string
     {
         $team_count = count($teams);
-        $team_ids = implode(', ', array_column($teams, 'team_id'));
         
         return "# Multi-Feedback - " . $assignment->getTitle() . "\n\n" .
                "## Information\n\n" .
-               "- **Assignment:** " . $assignment->getTitle() . " (ID: " . $assignment->getId() . ")\n" .
-               "- **Teams:** $team_count selected (IDs: $team_ids)\n" .
-               "- **Generated:** " . date('Y-m-d H:i:s') . "\n" .
-               "- **Plugin:** ExerciseStatusFile v1.1.1\n\n";
+               "- **Assignment:** " . $assignment->getTitle() . "\n" .
+               "- **Teams:** $team_count selected\n" .
+               "- **Generated:** " . date('Y-m-d H:i:s') . "\n\n" .
+               "## Structure\n\n" .
+               "```\n" .
+               "Multi_Feedback_[Assignment]_[TeamCount]_Teams/\n" .
+               "├── status.xlsx\n" .
+               "├── status.csv\n" .
+               "├── README.md\n" .
+               "└── Team_[ID]/\n" .
+               "    └── [Lastname_Firstname_Login_ID]/\n" .
+               "        └── [Submissions]\n" .
+               "```\n\n" .
+               "## Workflow\n\n" .
+               "1. **Edit status:** Open `status.xlsx` or `status.csv`. Set `update` to `1` for rows that should be updated.\n" .
+               "2. **Add feedback:** Place feedback files in the corresponding user folders. *(Still in development)*\n" .
+               "3. **Re-upload:** Upload the complete ZIP again.\n\n";
     }
     
     /**

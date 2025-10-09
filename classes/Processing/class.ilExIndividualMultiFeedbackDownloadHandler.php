@@ -105,7 +105,6 @@ class ilExIndividualMultiFeedbackDownloadHandler
             $this->addStatusFiles($zip, $assignment, $users, $temp_dir);
             $this->addUserSubmissionsFromArrays($zip, $assignment, $users);
             $this->addReadme($zip, $assignment, $users, $temp_dir);
-            $this->addMetadata($zip, $assignment, $users, $temp_dir);
             
             $zip->close();
             return $zip_path;
@@ -128,9 +127,8 @@ class ilExIndividualMultiFeedbackDownloadHandler
             $user_folder = $base_name . "/" . $this->generateUserFolderName($user_data);
             
             $zip->addEmptyDir($user_folder);
-            $this->addUserInfoToZip($zip, $user_folder, $user_data);
             
-            // WICHTIG: Submissions hinzufügen
+            // WICHTIG: Submissions hinzufügen (ohne user_info.txt)
             $this->addUserSubmissionsToZip($zip, $user_folder, $assignment, $user_id);
         }
     }
@@ -160,26 +158,17 @@ class ilExIndividualMultiFeedbackDownloadHandler
         if ($status_file->isWriteToFileSuccess() && file_exists($csv_path)) {
             $zip->addFile($csv_path, "status.csv");
         }
-        
-        // User-Info
-        $user_info = $this->generateUserInfo($assignment, $users);
-        $info_path = $temp_dir . '/user_info.json';
-        file_put_contents($info_path, json_encode($user_info, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-        $zip->addFile($info_path, "user_info.json");
     }
     
     /**
-     * User-Info zu ZIP hinzufügen
+     * User-Info zu ZIP hinzufügen - ENTFERNT
      */
-    private function addUserInfoToZip(\ZipArchive &$zip, string $user_folder, array $user_data): void
-    {
-        $temp_dir = $this->createTempDirectory('user_info');
-        $info_content = $this->generateUserInfoContent($user_data);
-        $info_path = $temp_dir . '/user_info.txt';
-        
-        file_put_contents($info_path, $info_content);
-        $zip->addFile($info_path, $user_folder . "/user_info.txt");
-    }
+    // Diese Methode wird nicht mehr verwendet
+    
+    /**
+     * Metadaten hinzufügen - ENTFERNT
+     */
+    // Diese Methode wird nicht mehr verwendet
     
     /**
      * User-Submissions zu ZIP hinzufügen - VERBESSERTE VERSION (ohne Template-Abhängigkeit)
@@ -361,37 +350,9 @@ class ilExIndividualMultiFeedbackDownloadHandler
     }
     
     /**
-     * Metadaten hinzufügen
+     * Metadaten hinzufügen - ENTFERNT (wurde bereits in createIndividualMultiFeedbackZIP() entfernt)
      */
-    private function addMetadata(\ZipArchive &$zip, \ilExAssignment $assignment, array $users, string $temp_dir): void
-    {
-        // User-Mapping
-        $user_mapping = [
-            'users' => []
-        ];
-        
-        foreach ($users as $user_data) {
-            $user_mapping['users'][$user_data['user_id']] = [
-                'user_id' => $user_data['user_id'],
-                'login' => $user_data['login'],
-                'firstname' => $user_data['firstname'],
-                'lastname' => $user_data['lastname'],
-                'fullname' => $user_data['fullname'],
-                'status' => $user_data['status'],
-                'has_submission' => $user_data['has_submission']
-            ];
-        }
-        
-        $mapping_path = $temp_dir . '/user_mapping.json';
-        file_put_contents($mapping_path, json_encode($user_mapping, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-        $zip->addFile($mapping_path, "user_mapping.json");
-        
-        // Statistiken
-        $stats = $this->generateStatistics($assignment, $users);
-        $stats_path = $temp_dir . '/statistics.json';
-        file_put_contents($stats_path, json_encode($stats, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-        $zip->addFile($stats_path, "statistics.json");
-    }
+    // Diese Methode existiert nicht mehr
     
     /**
      * ZIP-Download senden
@@ -472,79 +433,19 @@ class ilExIndividualMultiFeedbackDownloadHandler
     }
     
     /**
-     * User-Info generieren
+     * User-Info generieren - ENTFERNT
      */
-    private function generateUserInfo(\ilExAssignment $assignment, array $users): array
-    {
-        return [
-            'assignment' => [
-                'id' => $assignment->getId(),
-                'title' => $assignment->getTitle(),
-                'type' => $assignment->getType()
-            ],
-            'multi_feedback' => [
-                'user_count' => count($users),
-                'user_ids' => array_column($users, 'user_id'),
-                'generated_at' => date('Y-m-d H:i:s'),
-                'plugin_version' => '1.1.1'
-            ],
-            'users' => $users
-        ];
-    }
+    // Diese Methode wird nicht mehr verwendet
     
     /**
-     * User-Info-Content generieren (mit Übersetzungen)
+     * User-Info-Content generieren (mit Übersetzungen) - ENTFERNT
      */
-    private function generateUserInfoContent(array $user_data): string
-    {
-        if (!$this->plugin) {
-            return $this->generateUserInfoContentFallback($user_data);
-        }
-        
-        $content = "USER INFORMATION\n";
-        $content .= "=================\n\n";
-        $content .= "User " . $this->plugin->txt('readme_id') . ": " . $user_data['user_id'] . "\n";
-        $content .= $this->plugin->txt('readme_login') . ": " . $user_data['login'] . "\n";
-        $content .= "Name: " . $user_data['fullname'] . "\n";
-        $content .= $this->plugin->txt('readme_status') . ": " . $user_data['status'] . "\n";
-        
-        if (!empty($user_data['mark'])) {
-            $content .= $this->plugin->txt('readme_note') . ": " . $user_data['mark'] . "\n";
-        }
-        
-        if (!empty($user_data['comment'])) {
-            $content .= "\nKommentar:\n" . $user_data['comment'] . "\n";
-        }
-        
-        $content .= "\n" . $this->plugin->txt('readme_generated') . ": " . date('Y-m-d H:i:s') . "\n";
-        
-        return $content;
-    }
+    // Diese Methode wird nicht mehr verwendet
     
     /**
-     * User-Info-Content ohne Plugin (Fallback)
+     * User-Info-Content ohne Plugin (Fallback) - ENTFERNT
      */
-    private function generateUserInfoContentFallback(array $user_data): string
-    {
-        $content = "USER INFORMATION\n";
-        $content .= "=================\n\n";
-        $content .= "User ID: " . $user_data['user_id'] . "\n";
-        $content .= "Login: " . $user_data['login'] . "\n";
-        $content .= "Name: " . $user_data['fullname'] . "\n";
-        $content .= "Status: " . $user_data['status'] . "\n";
-        
-        if (!empty($user_data['mark'])) {
-            $content .= "Grade: " . $user_data['mark'] . "\n";
-        }
-        
-        if (!empty($user_data['comment'])) {
-            $content .= "\nComment:\n" . $user_data['comment'] . "\n";
-        }
-        
-        $content .= "\nGenerated: " . date('Y-m-d H:i:s') . "\n";
-        
-        return $content;
-    }
+    // Diese Methode wird nicht mehr verwendet
     
     /**
      * README-Content generieren (mit Übersetzungen)
@@ -556,36 +457,29 @@ class ilExIndividualMultiFeedbackDownloadHandler
         }
         
         $user_count = count($users);
-        $user_ids = implode(', ', array_column($users, 'user_id'));
         
-        return "# " . $this->plugin->txt('readme_title') . " Individual - " . $assignment->getTitle() . "\n\n" .
+        return "# " . $this->plugin->txt('readme_title') . " - " . $assignment->getTitle() . "\n\n" .
                "## " . $this->plugin->txt('readme_information') . "\n\n" .
-               "- **" . $this->plugin->txt('readme_assignment') . ":** " . $assignment->getTitle() . " (" . $this->plugin->txt('readme_id') . ": " . $assignment->getId() . ")\n" .
-               "- **" . $this->plugin->txt('readme_users') . ":** $user_count " . $this->plugin->txt('readme_selected') . " (" . $this->plugin->txt('readme_id') . "s: $user_ids)\n" .
-               "- **" . $this->plugin->txt('readme_generated') . ":** " . date('Y-m-d H:i:s') . "\n" .
-               "- **" . $this->plugin->txt('readme_plugin') . ":** ExerciseStatusFile v1.1.1\n\n" .
+               "- **" . $this->plugin->txt('readme_assignment') . ":** " . $assignment->getTitle() . "\n" .
+               "- **" . $this->plugin->txt('readme_users') . ":** $user_count " . $this->plugin->txt('readme_selected') . "\n" .
+               "- **" . $this->plugin->txt('readme_generated') . ":** " . date('Y-m-d H:i:s') . "\n\n" .
                "## " . $this->plugin->txt('readme_structure') . "\n\n" .
                "```\n" .
                "Multi_Feedback_Individual_[Assignment]_[UserCount]_Users/\n" .
                "├── status.xlsx                # " . $this->plugin->txt('readme_structure_status_xlsx') . "\n" .
                "├── status.csv                 # " . $this->plugin->txt('readme_structure_status_csv') . "\n" .
-               "├── user_info.json             # " . $this->plugin->txt('readme_structure_user_info_json') . "\n" .
-               "├── user_mapping.json          # " . $this->plugin->txt('readme_structure_user_mapping') . "\n" .
-               "├── statistics.json            # " . $this->plugin->txt('readme_structure_statistics') . "\n" .
                "├── README.md                  # " . $this->plugin->txt('readme_structure_readme') . "\n" .
                "└── [Lastname_Firstname_Login_ID]/  # " . $this->plugin->txt('readme_structure_per_user') . "\n" .
-               "    ├── user_info.txt          # " . $this->plugin->txt('readme_structure_user_info_txt') . "\n" .
                "    └── [Submissions]          # " . $this->plugin->txt('readme_structure_submissions') . "\n" .
                "```\n\n" .
                "## " . $this->plugin->txt('readme_workflow') . "\n\n" .
                "1. **" . $this->plugin->txt('readme_workflow_step1') . ":** " . 
-                   sprintf($this->plugin->txt('readme_workflow_step1_desc'), '`status.xlsx`', '`status.csv`') . "\n" .
-               "2. **" . $this->plugin->txt('readme_workflow_step2') . ":** " . $this->plugin->txt('readme_workflow_step2_desc') . "\n" .
+                   sprintf($this->plugin->txt('readme_workflow_step1_desc'), '`status.xlsx`', '`status.csv`') . 
+                   " Bei `update` eine `1` eintragen, wenn die entsprechende Zeile aktualisiert werden soll.\n" .
+               "2. **" . $this->plugin->txt('readme_workflow_step2') . ":** " . $this->plugin->txt('readme_workflow_step2_desc') . " *(Noch in Entwicklung)*\n" .
                "3. **" . $this->plugin->txt('readme_workflow_step3') . ":** " . $this->plugin->txt('readme_workflow_step3_desc') . "\n\n" .
                "## " . $this->plugin->txt('readme_user_overview') . "\n\n" .
-               $this->generateUserOverviewForReadme($users) . "\n\n" .
-               "---\n" .
-               "*" . $this->plugin->txt('readme_generated_by') . "*\n";
+               $this->generateUserOverviewForReadme($users) . "\n";
     }
     
     /**
@@ -594,14 +488,25 @@ class ilExIndividualMultiFeedbackDownloadHandler
     private function generateReadmeContentFallback(\ilExAssignment $assignment, array $users): string
     {
         $user_count = count($users);
-        $user_ids = implode(', ', array_column($users, 'user_id'));
         
-        return "# Multi-Feedback Individual - " . $assignment->getTitle() . "\n\n" .
+        return "# Multi-Feedback - " . $assignment->getTitle() . "\n\n" .
                "## Information\n\n" .
-               "- **Assignment:** " . $assignment->getTitle() . " (ID: " . $assignment->getId() . ")\n" .
-               "- **Users:** $user_count selected (IDs: $user_ids)\n" .
-               "- **Generated:** " . date('Y-m-d H:i:s') . "\n" .
-               "- **Plugin:** ExerciseStatusFile v1.1.1\n\n";
+               "- **Assignment:** " . $assignment->getTitle() . "\n" .
+               "- **Users:** $user_count selected\n" .
+               "- **Generated:** " . date('Y-m-d H:i:s') . "\n\n" .
+               "## Structure\n\n" .
+               "```\n" .
+               "Multi_Feedback_Individual_[Assignment]_[UserCount]_Users/\n" .
+               "├── status.xlsx\n" .
+               "├── status.csv\n" .
+               "├── README.md\n" .
+               "└── [Lastname_Firstname_Login_ID]/\n" .
+               "    └── [Submissions]\n" .
+               "```\n\n" .
+               "## Workflow\n\n" .
+               "1. **Edit status:** Open `status.xlsx` or `status.csv`. Set `update` to `1` for rows that should be updated.\n" .
+               "2. **Add feedback:** Place feedback files in the corresponding user folders. *(Still in development)*\n" .
+               "3. **Re-upload:** Upload the complete ZIP again.\n\n";
     }
     
     /**
@@ -653,39 +558,14 @@ class ilExIndividualMultiFeedbackDownloadHandler
     }
     
     /**
-     * Statistiken generieren
+     * Metadaten hinzufügen - ENTFERNT
      */
-    private function generateStatistics(\ilExAssignment $assignment, array $users): array
-    {
-        $stats = [
-            'summary' => [
-                'assignment_id' => $assignment->getId(),
-                'assignment_title' => $assignment->getTitle(),
-                'total_users' => count($users),
-                'generated_at' => date('Y-m-d H:i:s')
-            ],
-            'status_distribution' => [],
-            'users' => []
-        ];
-        
-        $status_counts = [];
-        foreach ($users as $user_data) {
-            $status = $user_data['status'];
-            $status_counts[$status] = ($status_counts[$status] ?? 0) + 1;
-            
-            $stats['users'][] = [
-                'user_id' => $user_data['user_id'],
-                'login' => $user_data['login'],
-                'fullname' => $user_data['fullname'],
-                'status' => $status,
-                'has_submission' => $user_data['has_submission'] ?? false
-            ];
-        }
-        
-        $stats['status_distribution'] = $status_counts;
-        
-        return $stats;
-    }
+    // Diese Methode wird nicht mehr verwendet
+    
+    /**
+     * Statistiken generieren - ENTFERNT
+     */
+    // Diese Methode wird nicht mehr verwendet
     
     /**
      * Temp-Directory erstellen
