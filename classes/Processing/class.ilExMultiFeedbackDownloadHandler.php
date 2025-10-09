@@ -7,7 +7,7 @@ declare(strict_types=1);
  * Verarbeitet Multi-Team-Downloads und generiert strukturierte ZIPs
  * 
  * @author Cornel Musielak
- * @version 1.1.0
+ * @version 1.1.1
  */
 class ilExMultiFeedbackDownloadHandler
 {
@@ -22,19 +22,19 @@ class ilExMultiFeedbackDownloadHandler
         $this->logger = $DIC->logger()->root();
         $this->team_provider = new ilExTeamDataProvider();
         
-        // Plugin-Instanz für Übersetzungen
-        $plugin_id = 'exstatusfile';
+        // Plugin-Instanz für Übersetzungen - FIXED
+        try {
+            $plugin_id = 'exstatusfile';
+            $repo = $DIC['component.repository'];
+            $factory = $DIC['component.factory'];
 
-        $repo = $DIC['component.repository'];
-        $factory = $DIC['component.factory'];
-
-        $info = $repo->getPluginById($plugin_id);
-        if ($info !== null && $info->isActive()) {
-            try {
-                $this->plugin = $factory->getPlugin($plugin_id);
-            } catch (Exception $e) {
-                $this->plugin = null;
+            $info = $repo->getPluginById($plugin_id);
+            if ($info !== null && $info->isActive()) {
+                $this->plugin = $factory->getPlugin($plugin_id); // FIXED: Parameter hinzugefügt
             }
+        } catch (Exception $e) {
+            $this->logger->warning("Could not load plugin for translations: " . $e->getMessage());
+            $this->plugin = null;
         }
         
         register_shutdown_function([$this, 'cleanupAllTempDirectories']);
@@ -128,13 +128,113 @@ class ilExMultiFeedbackDownloadHandler
             $zip->addEmptyDir($team_folder);
             $this->addTeamInfoToZip($zip, $team_folder, $team_data);
             
+            // WICHTIG: Sammle ALLE Submissions von ALLEN Team-Mitgliedern
+            $all_team_submissions = $this->collectAllTeamSubmissions($assignment->getId(), $team_data['members']);
+            
             foreach ($team_data['members'] as $member_data) {
                 $user_id = $member_data['user_id'];
                 $user_folder = $team_folder . "/" . $this->generateUserFolderName($member_data);
                 
                 $zip->addEmptyDir($user_folder);
-                $this->addUserSubmissionsToZip($zip, $user_folder, $assignment, $user_id);
+                
+                // Füge ALLE Team-Submissions zu JEDEM Team-Mitglied hinzu
+                $this->addTeamSubmissionsToUserFolder($zip, $user_folder, $all_team_submissions, $user_id);
             }
+        }
+    }
+    
+    /**
+     * Sammle alle Submissions von allen Team-Mitgliedern
+     */
+    private function collectAllTeamSubmissions(int $assignment_id, array $members): array
+    {
+        $all_submissions = [];
+        $seen_files = []; // Um Duplikate zu vermeiden
+        
+        foreach ($members as $member_data) {
+            $user_id = $member_data['user_id'];
+            $user_files = $this->getSubmittedFilesFromDB($assignment_id, $user_id);
+            
+            foreach ($user_files as $file_data) {
+                // Verwende Dateipfad als eindeutigen Key um Duplikate zu vermeiden
+                $file_key = $file_data['filepath'];
+                
+                if (!isset($seen_files[$file_key])) {
+                    $seen_files[$file_key] = true;
+                    $all_submissions[] = [
+                        'filename' => $file_data['filename'],
+                        'filepath' => $file_data['filepath'],
+                        'mimetype' => $file_data['mimetype'],
+                        'timestamp' => $file_data['timestamp'],
+                        'uploaded_by_user_id' => $user_id,
+                        'uploaded_by_login' => $member_data['login']
+                    ];
+                }
+            }
+        }
+        
+        // Sortiere nach Timestamp (neueste zuerst)
+        usort($all_submissions, function($a, $b) {
+            return strcmp($b['timestamp'], $a['timestamp']);
+        });
+        
+        return $all_submissions;
+    }
+    
+    /**
+     * Füge Team-Submissions zu User-Folder hinzu
+     */
+    private function addTeamSubmissionsToUserFolder(\ZipArchive &$zip, string $user_folder, array $all_team_submissions, int $current_user_id): void
+    {
+        try {
+            if (empty($all_team_submissions)) {
+                $this->logger->debug("No team submissions found for folder: $user_folder");
+                return;
+            }
+            
+            $this->logger->info("Adding " . count($all_team_submissions) . " team submission(s) to: $user_folder");
+            
+            $files_added = 0;
+            foreach ($all_team_submissions as $file_data) {
+                $file_name = $file_data['filename'];
+                $file_path = $file_data['filepath'];
+                $uploaded_by = $file_data['uploaded_by_user_id'];
+                $uploaded_by_login = $file_data['uploaded_by_login'];
+                
+                if (!file_exists($file_path)) {
+                    $this->logger->warning("File does not exist: $file_path");
+                    continue;
+                }
+                
+                if (!is_readable($file_path)) {
+                    $this->logger->warning("File is not readable: $file_path");
+                    continue;
+                }
+                
+                // Entferne ILIAS Timestamp-Prefix
+                $clean_filename = $this->removeILIASTimestampPrefix($file_name);
+                
+                // Optional: Markiere wer die Datei hochgeladen hat (wenn nicht der aktuelle User)
+                if ($uploaded_by != $current_user_id) {
+                    // Füge Uploader-Info hinzu (optional, auskommentiert)
+                    // $clean_filename = "[von_{$uploaded_by_login}]_" . $clean_filename;
+                }
+                
+                $safe_filename = $this->toAscii($clean_filename);
+                $zip_file_path = $user_folder . "/" . $safe_filename;
+                
+                if ($zip->addFile($file_path, $zip_file_path)) {
+                    $files_added++;
+                    $this->logger->info("Successfully added team file: $safe_filename (uploaded by user $uploaded_by)");
+                } else {
+                    $this->logger->error("Failed to add file to ZIP: $file_path -> $zip_file_path");
+                }
+            }
+            
+            $this->logger->info("Added $files_added team files to $user_folder");
+            
+        } catch (Exception $e) {
+            $this->logger->error("Error adding team submissions to folder: " . $e->getMessage());
         }
     }    
 
@@ -185,27 +285,170 @@ class ilExMultiFeedbackDownloadHandler
     }
     
     /**
-     * User-Submissions zu ZIP hinzufügen
+     * User-Submissions zu ZIP hinzufügen - VERBESSERTE VERSION (ohne Template-Abhängigkeit)
      */
     private function addUserSubmissionsToZip(\ZipArchive &$zip, string $user_folder, \ilExAssignment $assignment, int $user_id): void
     {
         try {
-            $submission = new \ilExSubmission($assignment, $user_id);
-            if (!$submission || !$submission->hasSubmitted()) {
+            $this->logger->info("Adding submissions for user $user_id to folder: $user_folder");
+            
+            // Direkt aus Datenbank holen ohne ilExSubmission (vermeidet Template-Problem)
+            $submitted_files = $this->getSubmittedFilesFromDB($assignment->getId(), $user_id);
+            
+            if (empty($submitted_files)) {
+                $this->logger->debug("User $user_id has no submitted files");
                 return;
             }
             
-            $submitted_files = $submission->getFiles();
-            foreach ($submitted_files as $file) {
-                if (isset($file['name']) && isset($file['full_path']) && file_exists($file['full_path'])) {
-                    $safe_filename = $this->toAscii($file['name']);
-                    $zip->addFile($file['full_path'], $user_folder . "/" . $safe_filename);
+            $this->logger->info("User $user_id has " . count($submitted_files) . " submitted files");
+            
+            $files_added = 0;
+            foreach ($submitted_files as $file_data) {
+                $file_name = $file_data['filename'];
+                $file_path = $file_data['filepath'];
+                
+                $this->logger->debug("Processing file for user $user_id: $file_name at $file_path");
+                
+                if (!file_exists($file_path)) {
+                    $this->logger->warning("File does not exist: $file_path for user $user_id");
+                    continue;
+                }
+                
+                if (!is_readable($file_path)) {
+                    $this->logger->warning("File is not readable: $file_path for user $user_id");
+                    continue;
+                }
+                
+                // Entferne ILIAS Timestamp-Prefix (z.B. 20251009061955_what_jpg.jpg -> what_jpg.jpg)
+                $clean_filename = $this->removeILIASTimestampPrefix($file_name);
+                $safe_filename = $this->toAscii($clean_filename);
+                $zip_file_path = $user_folder . "/" . $safe_filename;
+                
+                if ($zip->addFile($file_path, $zip_file_path)) {
+                    $files_added++;
+                    $this->logger->info("Successfully added file: $safe_filename to $zip_file_path");
+                } else {
+                    $this->logger->error("Failed to add file to ZIP: $file_path -> $zip_file_path");
+                }
+            }
+            
+            $this->logger->info("Added $files_added files for user $user_id");
+            
+        } catch (Exception $e) {
+            $this->logger->error("Error adding submissions for user $user_id: " . $e->getMessage());
+            $this->logger->error("Stack trace: " . $e->getTraceAsString());
+        }
+    }
+    
+    /**
+     * Entfernt ILIAS Timestamp-Prefix aus Dateinamen
+     * z.B.: 20251009061955_what_jpg.jpg -> what_jpg.jpg
+     */
+    private function removeILIASTimestampPrefix(string $filename): string
+    {
+        // ILIAS Timestamp Format: YYYYMMDDHHMMSS_ (14 Ziffern + Underscore)
+        // Beispiel: 20251009061955_what_jpg.jpg
+        
+        if (preg_match('/^(\d{14})_(.+)$/', $filename, $matches)) {
+            return $matches[2]; // Gibt den Teil nach dem Timestamp zurück
+        }
+        
+        return $filename; // Falls kein Timestamp gefunden, Original zurückgeben
+    }
+    
+    /**
+     * Submitted Files direkt aus DB holen (ohne ilExSubmission Template-Abhängigkeit)
+     */
+    private function getSubmittedFilesFromDB(int $assignment_id, int $user_id): array
+    {
+        global $DIC;
+        $db = $DIC->database();
+        $files = [];
+        
+        try {
+            // Hole alle returned files für diesen User und Assignment
+            $query = "SELECT * FROM exc_returned 
+                      WHERE ass_id = " . $db->quote($assignment_id, 'integer') . " 
+                      AND user_id = " . $db->quote($user_id, 'integer') . "
+                      AND mimetype IS NOT NULL
+                      ORDER BY ts DESC";
+            
+            $result = $db->query($query);
+            
+            while ($row = $db->fetchAssoc($result)) {
+                $filename = $row['filename'];
+                
+                // Der filename in der DB enthält oft schon den relativen Pfad
+                // z.B.: ilExercise/10/39/exc_103946/subm_32/103630/20250626083054_what_jpg.jpg
+                
+                $client_data_dir = CLIENT_DATA_DIR;
+                
+                // Baue verschiedene mögliche Pfade
+                $possible_paths = [];
+                
+                // Variante 1: filename ist bereits relativer Pfad
+                $possible_paths[] = $client_data_dir . "/" . $filename;
+                
+                // Variante 2: filename ist nur der Dateiname, dann manuell Pfad bauen
+                if (strpos($filename, '/') === false) {
+                    $exercise_id = $this->getExerciseIdFromAssignment($assignment_id);
+                    if ($exercise_id) {
+                        $possible_paths[] = $client_data_dir . "/ilExercise/" . $exercise_id . "/exc_" . $assignment_id . "/" . $user_id . "/" . $filename;
+                        $possible_paths[] = $client_data_dir . "/ilExercise/exc_" . $exercise_id . "/subm_" . $assignment_id . "/" . $user_id . "/" . $filename;
+                    }
+                }
+                
+                // Finde den existierenden Pfad
+                $file_path = null;
+                $basename = basename($filename); // Nur Dateiname für ZIP
+                
+                foreach ($possible_paths as $path) {
+                    if (file_exists($path) && is_readable($path)) {
+                        $file_path = $path;
+                        $this->logger->debug("Found file at: $path");
+                        break;
+                    }
+                }
+                
+                if ($file_path) {
+                    $files[] = [
+                        'filename' => $basename, // Nur Dateiname, nicht voller Pfad
+                        'filepath' => $file_path,
+                        'mimetype' => $row['mimetype'],
+                        'timestamp' => $row['ts']
+                    ];
+                } else {
+                    $this->logger->warning("Could not find file for user $user_id: $filename (tried: " . implode(', ', $possible_paths) . ")");
                 }
             }
             
         } catch (Exception $e) {
-            // Ignoriere fehlende Submissions
+            $this->logger->error("Error fetching submitted files from DB: " . $e->getMessage());
         }
+        
+        return $files;
+    }
+    
+    /**
+     * Exercise ID vom Assignment holen
+     */
+    private function getExerciseIdFromAssignment(int $assignment_id): ?int
+    {
+        global $DIC;
+        $db = $DIC->database();
+        
+        try {
+            $query = "SELECT exc_id FROM exc_assignment WHERE id = " . $db->quote($assignment_id, 'integer');
+            $result = $db->query($query);
+            
+            if ($row = $db->fetchAssoc($result)) {
+                return (int)$row['exc_id'];
+            }
+        } catch (Exception $e) {
+            $this->logger->error("Error getting exercise_id: " . $e->getMessage());
+        }
+        
+        return null;
     }
     
     /**
@@ -276,12 +519,17 @@ class ilExMultiFeedbackDownloadHandler
     {
         global $DIC;
         
-        $tpl = $DIC->ui()->mainTemplate();
-        $error_msg = $this->plugin->txt('error_multi_feedback_download') . ": " . $message;
-        $tpl->setOnScreenMessage('failure', $error_msg, true);
+        if ($this->plugin && isset($DIC['tpl'])) {
+            $tpl = $DIC->ui()->mainTemplate();
+            $error_msg = $this->plugin->txt('error_multi_feedback_download') . ": " . $message;
+            $tpl->setOnScreenMessage('failure', $error_msg, true);
+        }
         
-        $ctrl = $DIC->ctrl();
-        $ctrl->redirect(null, 'members');
+        // Redirect zurück zur Members-Seite
+        if (isset($DIC['ilCtrl'])) {
+            $ctrl = $DIC->ctrl();
+            $ctrl->redirect(null, 'members');
+        }
     }
     
     /**
@@ -335,7 +583,7 @@ class ilExMultiFeedbackDownloadHandler
                 'team_count' => count($teams),
                 'team_ids' => array_column($teams, 'team_id'),
                 'generated_at' => date('Y-m-d H:i:s'),
-                'plugin_version' => '1.1.0'
+                'plugin_version' => '1.1.1'
             ],
             'teams' => $teams
         ];
@@ -346,6 +594,10 @@ class ilExMultiFeedbackDownloadHandler
      */
     private function generateTeamInfoContent(array $team_data): string
     {
+        if (!$this->plugin) {
+            return $this->generateTeamInfoContentFallback($team_data);
+        }
+        
         $content = "TEAM INFORMATION\n";
         $content .= "================\n\n";
         $content .= "Team " . $this->plugin->txt('readme_id') . ": " . $team_data['team_id'] . "\n";
@@ -371,10 +623,43 @@ class ilExMultiFeedbackDownloadHandler
     }
     
     /**
+     * Team-Info-Content ohne Plugin (Fallback)
+     */
+    private function generateTeamInfoContentFallback(array $team_data): string
+    {
+        $content = "TEAM INFORMATION\n";
+        $content .= "================\n\n";
+        $content .= "Team ID: " . $team_data['team_id'] . "\n";
+        $content .= "Members: " . $team_data['member_count'] . "\n";
+        $content .= "Status: " . $team_data['status'] . "\n";
+        
+        if (!empty($team_data['mark'])) {
+            $content .= "Grade: " . $team_data['mark'] . "\n";
+        }
+        
+        $content .= "\nMembers:\n";
+        foreach ($team_data['members'] as $member) {
+            $content .= "- " . $member['fullname'] . " (" . $member['login'] . ")\n";
+        }
+        
+        if (!empty($team_data['comment'])) {
+            $content .= "\nComment:\n" . $team_data['comment'] . "\n";
+        }
+        
+        $content .= "\nGenerated: " . date('Y-m-d H:i:s') . "\n";
+        
+        return $content;
+    }
+    
+    /**
      * README-Content generieren (mit Übersetzungen)
      */
     private function generateReadmeContent(\ilExAssignment $assignment, array $teams): string
     {
+        if (!$this->plugin) {
+            return $this->generateReadmeContentFallback($assignment, $teams);
+        }
+        
         $team_count = count($teams);
         $team_ids = implode(', ', array_column($teams, 'team_id'));
         
@@ -383,7 +668,7 @@ class ilExMultiFeedbackDownloadHandler
                "- **" . $this->plugin->txt('readme_assignment') . ":** " . $assignment->getTitle() . " (" . $this->plugin->txt('readme_id') . ": " . $assignment->getId() . ")\n" .
                "- **" . $this->plugin->txt('readme_teams') . ":** $team_count " . $this->plugin->txt('readme_selected') . " (" . $this->plugin->txt('readme_id') . "s: $team_ids)\n" .
                "- **" . $this->plugin->txt('readme_generated') . ":** " . date('Y-m-d H:i:s') . "\n" .
-               "- **" . $this->plugin->txt('readme_plugin') . ":** ExerciseStatusFile v1.1.0\n\n" .
+               "- **" . $this->plugin->txt('readme_plugin') . ":** ExerciseStatusFile v1.1.1\n\n" .
                "## " . $this->plugin->txt('readme_structure') . "\n\n" .
                "```\n" .
                "Multi_Feedback_[Assignment]_[TeamCount]_Teams/\n" .
@@ -410,10 +695,30 @@ class ilExMultiFeedbackDownloadHandler
     }
     
     /**
+     * README-Content ohne Plugin (Fallback)
+     */
+    private function generateReadmeContentFallback(\ilExAssignment $assignment, array $teams): string
+    {
+        $team_count = count($teams);
+        $team_ids = implode(', ', array_column($teams, 'team_id'));
+        
+        return "# Multi-Feedback - " . $assignment->getTitle() . "\n\n" .
+               "## Information\n\n" .
+               "- **Assignment:** " . $assignment->getTitle() . " (ID: " . $assignment->getId() . ")\n" .
+               "- **Teams:** $team_count selected (IDs: $team_ids)\n" .
+               "- **Generated:** " . date('Y-m-d H:i:s') . "\n" .
+               "- **Plugin:** ExerciseStatusFile v1.1.1\n\n";
+    }
+    
+    /**
      * Team-Overview für README (mit Übersetzungen)
      */
     private function generateTeamOverviewForReadme(array $teams): string
     {
+        if (!$this->plugin) {
+            return $this->generateTeamOverviewForReadmeFallback($teams);
+        }
+        
         $overview = "";
         foreach ($teams as $team_data) {
             $overview .= "### Team " . $team_data['team_id'] . "\n";
@@ -428,6 +733,33 @@ class ilExMultiFeedbackDownloadHandler
             
             if (!empty($team_data['mark'])) {
                 $overview .= "- **" . $this->plugin->txt('readme_note') . ":** " . $team_data['mark'] . "\n";
+            }
+            
+            $overview .= "\n";
+        }
+        
+        return $overview;
+    }
+    
+    /**
+     * Team-Overview für README ohne Plugin (Fallback)
+     */
+    private function generateTeamOverviewForReadmeFallback(array $teams): string
+    {
+        $overview = "";
+        foreach ($teams as $team_data) {
+            $overview .= "### Team " . $team_data['team_id'] . "\n";
+            $overview .= "- **Status:** " . $team_data['status'] . "\n";
+            $overview .= "- **Members:** ";
+            
+            $member_names = [];
+            foreach ($team_data['members'] as $member) {
+                $member_names[] = $member['fullname'] . " (" . $member['login'] . ")";
+            }
+            $overview .= implode(', ', $member_names) . "\n";
+            
+            if (!empty($team_data['mark'])) {
+                $overview .= "- **Grade:** " . $team_data['mark'] . "\n";
             }
             
             $overview .= "\n";
