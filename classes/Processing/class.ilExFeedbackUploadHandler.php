@@ -8,7 +8,7 @@ declare(strict_types=1);
  * Unterstützt Individual- und Team-Assignments
  * 
  * @author Cornel Musielak
- * @version 1.1.0
+ * @version 1.1.1
  */
 class ilExFeedbackUploadHandler
 {
@@ -126,7 +126,6 @@ class ilExFeedbackUploadHandler
             throw new Exception("Das ZIP-Archiv ist leer.");
         }
         
-        // Nur bei Problemen loggen
         $assignment = new \ilExAssignment($assignment_id);
         $is_team_assignment = $assignment->getAssignmentType()->usesTeams();
         
@@ -317,7 +316,7 @@ class ilExFeedbackUploadHandler
         
         return $status_files;
     }
-    
+
     /**
      * Verarbeitet Status-Files und wendet Updates an
      */
@@ -327,13 +326,12 @@ class ilExFeedbackUploadHandler
             throw new Exception("Keine gültigen Status-Dateien gefunden.");
         }
         
+        $this->ensureTemplateInitialized();
+        
         try {
             $this->clearAssignmentCaches($assignment_id);
             
             $assignment = new \ilExAssignment($assignment_id);
-            $status_file = new ilPluginExAssignmentStatusFile();
-            $status_file->init($assignment);
-            $status_file->allowPlagiarismUpdate(true);
             
             $updates_applied = false;
             $load_errors = [];
@@ -353,6 +351,35 @@ class ilExFeedbackUploadHandler
                             $updates = $status_file->getUpdates();
                             $updates_count = count($updates);
                             
+                            // Tracke welche User/Teams ein Update bekommen
+                            $updated_user_ids = [];
+                            $updated_team_ids = [];
+                            
+                            foreach ($updates as $update) {
+                                if (isset($update['usr_id'])) {
+                                    $updated_user_ids[] = (int)$update['usr_id'];
+                                }
+                                elseif (isset($update['team_id'])) {
+                                    $team_id = (int)$update['team_id'];
+                                    $updated_team_ids[] = $team_id;
+                                    
+                                    try {
+                                        $teams = ilExAssignmentTeam::getInstancesFromMap($assignment_id);
+                                        if (isset($teams[$team_id])) {
+                                            $member_ids = $teams[$team_id]->getMembers();
+                                            foreach ($member_ids as $member_id) {
+                                                $updated_user_ids[] = $member_id;
+                                            }
+                                        }
+                                    } catch (Exception $e) {
+                                        $this->logger->warning("Could not get team members for team $team_id");
+                                    }
+                                }
+                            }
+                            
+                            $this->processing_stats['updated_users'] = $updated_user_ids;
+                            $this->processing_stats['updated_teams'] = $updated_team_ids;
+                            
                             $this->clearAssignmentCaches($assignment_id);
                             $status_file->applyStatusUpdates();
                             $this->clearAssignmentCaches($assignment_id);
@@ -365,7 +392,6 @@ class ilExFeedbackUploadHandler
                             $this->processing_stats['timestamp'] = date('Y-m-d H:i:s');
                             $updates_applied = true;
                             
-                            // Nur erfolgreiche Updates loggen
                             $this->logger->info("Applied $updates_count status updates from " . basename($file_path));
                             break;
                             
@@ -375,7 +401,6 @@ class ilExFeedbackUploadHandler
                     } else {
                         if ($status_file->hasError()) {
                             $load_errors[] = "Fehler beim Laden von " . basename($file_path) . ": " . $status_file->getInfo();
-                            #$this->logger->error("Error loading " . basename($file_path) . ": " . $status_file->getInfo()); # not functioning?
                         } else {
                             $load_errors[] = "Datei " . basename($file_path) . " konnte nicht geladen werden.";
                         }
@@ -404,12 +429,27 @@ class ilExFeedbackUploadHandler
     }
     
     /**
+     * Stellt sicher dass das Template initialisiert ist
+     */
+    private function ensureTemplateInitialized(): void
+    {
+        global $DIC;
+        
+        try {
+            if (!isset($DIC['tpl']) || !$DIC['tpl']) {
+                $DIC['tpl'] = new ilGlobalPageTemplate($DIC->globalScreen(), $DIC->ui(), $DIC->http());
+            }
+        } catch (Exception $e) {
+            $this->logger->warning("Could not initialize template: " . $e->getMessage());
+        }
+    }
+    
+    /**
      * Assignment-Caches leeren
      */
     private function clearAssignmentCaches(int $assignment_id): void
     {
         try {
-            // Session-Cache leeren
             $session_keys_to_clear = [
                 'exc_assignment_' . $assignment_id,
                 'exc_members_' . $assignment_id,
@@ -424,12 +464,10 @@ class ilExFeedbackUploadHandler
                 }
             }
             
-            // Globale Caches
             if (isset($GLOBALS['assignment_cache_' . $assignment_id])) {
                 unset($GLOBALS['assignment_cache_' . $assignment_id]);
             }
             
-            // Garbage Collection
             if (function_exists('gc_collect_cycles')) {
                 gc_collect_cycles();
             }
@@ -514,9 +552,10 @@ class ilExFeedbackUploadHandler
         foreach ($extracted_files as $file) {
             $path = $file['original_name'];
             
-            if (preg_match('/[^\/]+_[^\/]+_[^\/]+_(\d+)\/(.+)/', $path, $matches)) {
-                $user_id = (int)$matches[1];
-                $filename = $matches[2];
+            // Pattern: IRGENDETWAS/Lastname_Firstname_Login_12345/filename.ext
+            if (preg_match('/\/([^\/]+)_([^\/]+)_([^\/]+)_(\d+)\/([^\/]+)$/', $path, $matches)) {
+                $user_id = (int)$matches[4];
+                $filename = $matches[5];
                 
                 if (!isset($individual_files[$user_id])) {
                     $individual_files[$user_id] = [];
@@ -538,7 +577,50 @@ class ilExFeedbackUploadHandler
      */
     private function processTeamSpecificFeedback(int $team_id, array $files, int $assignment_id): void
     {
-        // Platzhalter für erweiterte Team-Feedback-Logic
+        try {
+            $teams = ilExAssignmentTeam::getInstancesFromMap($assignment_id);
+            
+            if (!isset($teams[$team_id])) {
+                $this->logger->warning("Team $team_id not found in assignment $assignment_id");
+                return;
+            }
+            
+            $team = $teams[$team_id];
+            $member_ids = $team->getMembers();
+            
+            if (empty($member_ids)) {
+                $this->logger->warning("Team $team_id has no members");
+                return;
+            }
+            
+            // Prüfe ob IRGENDEIN Team-Mitglied für Update markiert wurde
+            $team_marked_for_update = false;
+            foreach ($member_ids as $member_id) {
+                if ($this->isUserMarkedForUpdate($assignment_id, $member_id)) {
+                    $team_marked_for_update = true;
+                    break;
+                }
+            }
+            
+            if (!$team_marked_for_update) {
+                return;
+            }
+            
+            $this->logger->info("Processing feedback for team $team_id with " . count($member_ids) . " members");
+            
+            // Verarbeite Files für JEDES Team-Mitglied
+            foreach ($member_ids as $member_id) {
+                $existing_submissions = $this->getExistingSubmissionFiles($assignment_id, $member_id);
+                $new_feedback_files = $this->filterNewFeedbackFiles($files, $existing_submissions);
+                
+                if (!empty($new_feedback_files)) {
+                    $this->processUserSpecificFeedback($member_id, $new_feedback_files, $assignment_id);
+                }
+            }
+            
+        } catch (Exception $e) {
+            $this->logger->error("Error processing team feedback for team $team_id: " . $e->getMessage());
+        }
     }
     
     /**
@@ -546,7 +628,296 @@ class ilExFeedbackUploadHandler
      */
     private function processUserSpecificFeedback(int $user_id, array $files, int $assignment_id): void
     {
-        // Platzhalter für erweiterte Individual-Feedback-Logic
+        global $DIC;
+        
+        try {
+            if (!$this->isUserMarkedForUpdate($assignment_id, $user_id)) {
+                return;
+            }
+            
+            $existing_submissions = $this->getExistingSubmissionFiles($assignment_id, $user_id);
+            $new_feedback_files = $this->filterNewFeedbackFiles($files, $existing_submissions);
+            
+            if (empty($new_feedback_files)) {
+                return;
+            }
+            
+            $this->logger->info("Processing " . count($new_feedback_files) . " new feedback files for user $user_id");
+            
+            $assignment = new \ilExAssignment($assignment_id);
+            $is_team = $assignment->getAssignmentType()->usesTeams();
+            
+            // Bestimme Participant-ID
+            $participant_id = $user_id;
+            if ($is_team) {
+                $teams = \ilExAssignmentTeam::getInstancesFromMap($assignment_id);
+                foreach ($teams as $team_id => $team) {
+                    if (in_array($user_id, $team->getMembers())) {
+                        $participant_id = $team_id;
+                        break;
+                    }
+                }
+            }
+            
+            // Resource Storage oder Filesystem?
+            $feedback_rcid = $this->getFeedbackCollectionIdFromDB($assignment_id, $participant_id);
+            
+            if (empty($feedback_rcid)) {
+                $this->logger->info("Using filesystem storage for participant $participant_id");
+                $this->addFeedbackFilesViaFilesystem($user_id, $participant_id, $new_feedback_files, $assignment_id, $is_team);
+            } else {
+                $this->logger->info("Using resource storage for participant $participant_id");
+                $this->addFeedbackFilesViaResourceStorage($user_id, $participant_id, $new_feedback_files, $assignment_id, $is_team, $feedback_rcid);
+            }
+            
+        } catch (Exception $e) {
+            $this->logger->error("Error processing feedback for user $user_id: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Fügt Feedback-Files via Resource Storage hinzu
+     */
+    private function addFeedbackFilesViaResourceStorage(int $user_id, int $participant_id, array $files, int $assignment_id, bool $is_team, string $feedback_rcid): void
+    {
+        global $DIC;
+        
+        try {
+            $rcid = $DIC->resourceStorage()->collection()->id($feedback_rcid);
+            $collection = $DIC->resourceStorage()->collection()->get($rcid);
+            
+            if (!$collection) {
+                throw new Exception("Could not get resource collection for participant $participant_id");
+            }
+            
+            if ($is_team) {
+                $stakeholder = new \ilExcTutorTeamFeedbackFileStakeholder();
+            } else {
+                $stakeholder = new \ilExcTutorFeedbackFileStakeholder();
+            }
+            
+            $files_added = 0;
+            foreach ($files as $file_data) {
+                try {
+                    $file_path = $file_data['path'];
+                    $filename = $file_data['filename'];
+                    
+                    if (!file_exists($file_path)) {
+                        $this->logger->warning("Feedback file does not exist: $file_path");
+                        continue;
+                    }
+                    
+                    $stream = \ILIAS\Filesystem\Stream\Streams::ofResource(fopen($file_path, 'rb'));
+                    
+                    $rid = $DIC->resourceStorage()->manage()->stream(
+                        $stream,
+                        $stakeholder,
+                        $filename
+                    );
+                    
+                    $collection->add($rid);
+                    $files_added++;
+                    
+                } catch (Exception $e) {
+                    $this->logger->error("Error adding feedback file '$filename': " . $e->getMessage());
+                }
+            }
+            
+            if ($files_added > 0) {
+                $DIC->resourceStorage()->collection()->store($collection);
+                
+                $member_status = new \ilExAssignmentMemberStatus($assignment_id, $user_id);
+                $member_status->setFeedback(true);
+                $member_status->update();
+                
+                $this->logger->info("Successfully added $files_added feedback files via resource storage for user $user_id");
+            }
+            
+        } catch (Exception $e) {
+            $this->logger->error("Error in resource storage feedback: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Fügt Feedback-Files via Filesystem hinzu
+     */
+    private function addFeedbackFilesViaFilesystem(int $user_id, int $participant_id, array $files, int $assignment_id, bool $is_team): void
+    {
+        $feedback_id = (string)$participant_id;
+        if ($is_team) {
+            $feedback_id = "t" . $participant_id;
+        }
+        
+        $exc_id = \ilExAssignment::lookupExerciseId($assignment_id);
+        $storage = new \ilFSStorageExercise($exc_id, $assignment_id);
+        $storage->create();
+        
+        $feedback_path = $storage->getFeedbackPath($feedback_id);
+        
+        if (!is_dir($feedback_path)) {
+            \ilFileUtils::makeDirParents($feedback_path);
+        }
+        
+        $files_added = 0;
+        foreach ($files as $file_data) {
+            try {
+                $file_path = $file_data['path'];
+                $filename = $file_data['filename'];
+                
+                if (!file_exists($file_path)) {
+                    $this->logger->warning("Feedback file does not exist: $file_path");
+                    continue;
+                }
+                
+                $target_path = $feedback_path . '/' . $filename;
+                
+                if (copy($file_path, $target_path)) {
+                    $files_added++;
+                } else {
+                    $this->logger->error("Could not copy feedback file '$filename'");
+                }
+                
+            } catch (Exception $e) {
+                $this->logger->error("Error adding feedback file '$filename': " . $e->getMessage());
+            }
+        }
+        
+        if ($files_added > 0) {
+            $member_status = new \ilExAssignmentMemberStatus($assignment_id, $user_id);
+            $member_status->setFeedback(true);
+            $member_status->update();
+            
+            $this->logger->info("Successfully added $files_added feedback files via filesystem for user $user_id");
+        }
+    }
+
+    /**
+     * Holt die Feedback Collection-ID aus der Datenbank
+     */
+    private function getFeedbackCollectionIdFromDB(int $assignment_id, int $participant_id): string
+    {
+        global $DIC;
+        $db = $DIC->database();
+        
+        try {
+            $query = "SELECT feedback_rcid FROM exc_mem_ass_status 
+                      WHERE ass_id = " . $db->quote($assignment_id, 'integer') . " 
+                      AND usr_id = " . $db->quote($participant_id, 'integer');
+            
+            $result = $db->query($query);
+            
+            if ($row = $db->fetchAssoc($result)) {
+                return (string)($row['feedback_rcid'] ?? '');
+            }
+        } catch (Exception $e) {
+            $this->logger->error("getFeedbackCollectionIdFromDB failed: " . $e->getMessage());
+        }
+        
+        return '';
+    }
+
+    /**
+     * Prüft ob User in Status-Updates markiert wurde
+     */
+    private function isUserMarkedForUpdate(int $assignment_id, int $user_id): bool
+    {
+        if (isset($this->processing_stats['updated_users'])) {
+            return in_array($user_id, $this->processing_stats['updated_users']);
+        }
+        return false;
+    }    
+
+    /**
+     * Hole bereits abgegebene Submissions des Users
+     */
+    private function getExistingSubmissionFiles(int $assignment_id, int $user_id): array
+    {
+        global $DIC;
+        $db = $DIC->database();
+        $existing_files = [];
+        
+        try {
+            $assignment = new \ilExAssignment($assignment_id);
+            $is_team = $assignment->getAssignmentType()->usesTeams();
+            
+            $user_ids = [$user_id];
+            
+            if ($is_team) {
+                $teams = \ilExAssignmentTeam::getInstancesFromMap($assignment_id);
+                foreach ($teams as $team_id => $team) {
+                    if (in_array($user_id, $team->getMembers())) {
+                        $user_ids = $team->getMembers();
+                        break;
+                    }
+                }
+            }
+            
+            foreach ($user_ids as $uid) {
+                $query = "SELECT filename FROM exc_returned 
+                        WHERE ass_id = " . $db->quote($assignment_id, 'integer') . " 
+                        AND user_id = " . $db->quote($uid, 'integer') . "
+                        AND mimetype IS NOT NULL";
+                
+                $result = $db->query($query);
+                
+                while ($row = $db->fetchAssoc($result)) {
+                    $filename = basename($row['filename']);
+                    $clean_filename = preg_replace('/^(\d{14})_/', '', $filename);
+                    $existing_files[] = $clean_filename;
+                }
+            }
+            
+        } catch (Exception $e) {
+            $this->logger->error("Error getting existing submissions: " . $e->getMessage());
+        }
+        
+        return $existing_files;
+    }
+
+    /**
+     * Filtere neue Feedback-Files
+     */
+    private function filterNewFeedbackFiles(array $files, array $existing_submissions): array
+    {
+        $new_files = [];
+        
+        foreach ($files as $file) {
+            $filename = $file['filename'];
+            
+            // Skip Status-Files und System-Files
+            if (in_array($filename, ['status.xlsx', 'status.csv', 'status.xls', 'README.md'])) {
+                continue;
+            }
+            
+            if (substr($filename, 0, 1) === '.' || substr($filename, 0, 2) === '__') {
+                continue;
+            }
+            
+            // Normalisiere Dateinamen
+            $clean_filename = preg_replace('/^(\d{14})_/', '', $filename);
+            
+            // Prüfe ob File bereits als Submission existiert
+            $is_submission = false;
+            foreach ($existing_submissions as $submission) {
+                if ($filename === $submission || $clean_filename === $submission) {
+                    $is_submission = true;
+                    break;
+                }
+                
+                $clean_submission = preg_replace('/^(\d{14})_/', '', $submission);
+                if ($clean_filename === $clean_submission) {
+                    $is_submission = true;
+                    break;
+                }
+            }
+            
+            if (!$is_submission) {
+                $new_files[] = $file;
+            }
+        }
+        
+        return $new_files;
     }
     
     /**
