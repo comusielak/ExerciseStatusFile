@@ -176,7 +176,7 @@ class ilExIndividualMultiFeedbackDownloadHandler
     private function addUserSubmissionsToZip(\ZipArchive &$zip, string $user_folder, \ilExAssignment $assignment, int $user_id): void
     {
         try {
-            $this->logger->info("Adding submissions for user $user_id to folder: $user_folder");
+            $this->logger->debug("Adding submissions for user $user_id to folder: $user_folder");
             
             // Direkt aus Datenbank holen ohne ilExSubmission (vermeidet Template-Problem)
             $submitted_files = $this->getSubmittedFilesFromDB($assignment->getId(), $user_id);
@@ -186,7 +186,7 @@ class ilExIndividualMultiFeedbackDownloadHandler
                 return;
             }
             
-            $this->logger->info("User $user_id has " . count($submitted_files) . " submitted files");
+            $this->logger->debug("User $user_id has " . count($submitted_files) . " submitted files");
             
             $files_added = 0;
             foreach ($submitted_files as $file_data) {
@@ -212,13 +212,13 @@ class ilExIndividualMultiFeedbackDownloadHandler
                 
                 if ($zip->addFile($file_path, $zip_file_path)) {
                     $files_added++;
-                    $this->logger->info("Successfully added file: $safe_filename to $zip_file_path");
+                    $this->logger->debug("Successfully added file: $safe_filename to $zip_file_path");
                 } else {
                     $this->logger->error("Failed to add file to ZIP: $file_path -> $zip_file_path");
                 }
             }
             
-            $this->logger->info("Added $files_added files for user $user_id");
+            $this->logger->debug("Added $files_added files for user $user_id");
             
         } catch (Exception $e) {
             $this->logger->error("Error adding submissions for user $user_id: " . $e->getMessage());
@@ -392,7 +392,7 @@ class ilExIndividualMultiFeedbackDownloadHandler
         // Redirect zurück zur Members-Seite
         if (isset($DIC['ilCtrl'])) {
             $ctrl = $DIC->ctrl();
-            $ctrl->redirect(null, 'members');
+            $ctrl->redirectByClass('ilExerciseManagementGUI', 'members');
         }
     }
     

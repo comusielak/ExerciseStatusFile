@@ -57,11 +57,9 @@ class ilExTeamButtonRenderer
             'team_download_start' => $this->plugin->txt('team_download_start'),
             'team_download_generating' => $this->plugin->txt('team_download_generating'),
             'team_download_auto' => $this->plugin->txt('team_download_auto'),
-            'team_no_teams_found' => $this->plugin->txt('team_no_teams_found'),
             'team_error_loading' => $this->plugin->txt('team_error_loading'),
+            'team_no_teams_found' => $this->plugin->txt('team_no_teams_found'),
             'team_reload_page' => $this->plugin->txt('team_reload_page'),
-            'team_member_count' => $this->plugin->txt('team_member_count'),
-            'team_status' => $this->plugin->txt('team_status'),
             
             // Individual
             'individual_loading' => $this->plugin->txt('individual_loading'),
@@ -70,53 +68,46 @@ class ilExTeamButtonRenderer
             'individual_selected_count' => $this->plugin->txt('individual_selected_count'),
             'individual_download_start' => $this->plugin->txt('individual_download_start'),
             'individual_download_generating' => $this->plugin->txt('individual_download_generating'),
-            'individual_no_users_found' => $this->plugin->txt('individual_no_users_found'),
+            'individual_download_auto' => $this->plugin->txt('individual_download_auto'),
             'individual_error_loading' => $this->plugin->txt('individual_error_loading'),
-            'individual_submission_available' => $this->plugin->txt('individual_submission_available'),
-            'individual_no_submission' => $this->plugin->txt('individual_no_submission'),
+            'individual_no_users_found' => $this->plugin->txt('individual_no_users_found'),
             
             // Upload
             'upload_title' => $this->plugin->txt('upload_title'),
             'upload_select_file' => $this->plugin->txt('upload_select_file'),
             'upload_select_file_desc' => $this->plugin->txt('upload_select_file_desc'),
             'upload_file_selected' => $this->plugin->txt('upload_file_selected'),
-            'upload_file_ready' => $this->plugin->txt('upload_file_ready'),
-            'upload_file_validation_detail' => $this->plugin->txt('upload_file_validation_detail'),
             'upload_hint' => $this->plugin->txt('upload_hint'),
             'upload_start' => $this->plugin->txt('upload_start'),
+            'upload_select_file_first' => $this->plugin->txt('upload_select_file_first'),
             'upload_in_progress' => $this->plugin->txt('upload_in_progress'),
+            'upload_processing' => $this->plugin->txt('upload_processing'),
             'upload_success' => $this->plugin->txt('upload_success'),
-            'upload_success_message' => $this->plugin->txt('upload_success_message'),
-            'upload_success_reload' => $this->plugin->txt('upload_success_reload'),
+            'upload_success_msg' => $this->plugin->txt('upload_success_msg'),
+            'upload_reload_page' => $this->plugin->txt('upload_reload_page'),
             'upload_error' => $this->plugin->txt('upload_error'),
             'upload_retry' => $this->plugin->txt('upload_retry'),
-            'upload_select_file_first' => $this->plugin->txt('upload_select_file_first'),
+            'upload_file_ready' => $this->plugin->txt('upload_file_ready'),
             
-            // File Validation
+            // File Info
+            'file_info_name' => $this->plugin->txt('file_info_name'),
+            'file_info_size' => $this->plugin->txt('file_info_size'),
+            'file_info_type' => $this->plugin->txt('file_info_type'),
+            'file_info_modified' => $this->plugin->txt('file_info_modified'),
+            
+            // File Errors
             'file_error_title' => $this->plugin->txt('file_error_title'),
-            'file_error_empty' => $this->plugin->txt('file_error_empty'),
-            'file_error_too_small' => $this->plugin->txt('file_error_too_small'),
-            'file_error_too_large' => $this->plugin->txt('file_error_too_large'),
             'file_error_not_zip' => $this->plugin->txt('file_error_not_zip'),
             'file_error_current_file' => $this->plugin->txt('file_error_current_file'),
             'file_error_unknown_type' => $this->plugin->txt('file_error_unknown_type'),
             'file_error_select_other' => $this->plugin->txt('file_error_select_other'),
             'file_error_must_contain' => $this->plugin->txt('file_error_must_contain'),
-            'file_info_size' => $this->plugin->txt('file_info_size'),
-            'file_info_type' => $this->plugin->txt('file_info_type'),
-            'file_info_modified' => $this->plugin->txt('file_info_modified'),
             
             // Errors
             'error_http' => $this->plugin->txt('error_http'),
             'error_network' => $this->plugin->txt('error_network'),
             'error_no_teams_selected' => $this->plugin->txt('error_no_teams_selected'),
             'error_no_users_selected' => $this->plugin->txt('error_no_users_selected'),
-            
-            // Progress
-            'progress_assignment' => $this->plugin->txt('progress_assignment'),
-            'progress_teams' => $this->plugin->txt('progress_teams'),
-            'progress_users' => $this->plugin->txt('progress_users'),
-            'progress_selected' => $this->plugin->txt('progress_selected'),
         ];
         
         // Alle Strings mit addslashes() escapen für JavaScript
@@ -158,26 +149,23 @@ class ilExTeamButtonRenderer
                                 "</div>" +
                             "</div>" +
                             
-                            "<div style=\"padding: 20px; max-height: 500px; overflow-y: auto;\">" +
-                                
+                            "<div style=\"padding: 20px; max-height: 70vh; overflow-y: auto;\">" +
                                 "<div id=\"download-content\">" +
                                     "<div id=\"team-loading\" style=\"text-align: center; padding: 20px;\">" +
-                                        "<div style=\"display: inline-block; width: 40px; height: 40px; border: 3px solid #f3f3f3; border-top: 3px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite;\"></div>" +
-                                        "<p style=\"margin-top: 10px;\">' . $txt['team_loading'] . '</p>" +
+                                        "<div style=\"font-size: 2em; margin-bottom: 10px;\">⏳</div>" +
+                                        "<p>' . $txt['team_loading'] . '</p>" +
                                     "</div>" +
-                                    
                                     "<div id=\"team-selection\" style=\"display: none;\">" +
-                                        "<h4 style=\"margin-top: 0; color: #007bff;\">📥 ' . $txt['team_select_for_download'] . '</h4>" +
-                                        "<div style=\"margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px;\">" +
-                                            "<label style=\"display: flex; align-items: center; cursor: pointer;\">" +
-                                                "<input type=\"checkbox\" id=\"select-all-teams\" style=\"margin-right: 10px;\">" +
+                                        "<h4 style=\"margin-top: 0;\">' . $txt['team_select_for_download'] . '</h4>" +
+                                        "<div style=\"margin-bottom: 15px;\">" +
+                                            "<label style=\"cursor: pointer;\">" +
+                                                "<input type=\"checkbox\" id=\"select-all-teams\" onchange=\"window.ExerciseStatusFilePlugin.toggleAllTeams()\" style=\"margin-right: 5px;\">" +
                                                 "<strong>' . $txt['team_select_all'] . '</strong>" +
                                             "</label>" +
                                         "</div>" +
-                                        "<div id=\"teams-list\" style=\"max-height: 250px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px; padding: 10px;\">" +
-                                        "</div>" +
+                                        "<div id=\"teams-list\" style=\"max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px; padding: 10px;\"></div>" +
                                         "<div style=\"margin-top: 15px; display: flex; justify-content: space-between; align-items: center;\">" +
-                                            "<div><span id=\"selected-count\">0</span> ' . $txt['team_selected_count'] . '</div>" +
+                                            "<div id=\"selected-teams-count\" style=\"color: #666;\">' . $txt['team_selected_count'] . '</div>" +
                                             "<button id=\"start-download-btn\" onclick=\"window.ExerciseStatusFilePlugin.startMultiFeedbackProcessing(" + assignmentId + ")\" " +
                                                     "style=\"padding: 8px 15px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;\" disabled>" +
                                                 "📥 ' . $txt['team_download_start'] . '" +
@@ -207,7 +195,7 @@ class ilExTeamButtonRenderer
                                         "<div style=\"color: #666; font-size: 14px;\">" +
                                             "💡 ' . $txt['upload_hint'] . '" +
                                         "</div>" +
-                                        "<button id=\"start-upload-btn\" onclick=\"window.ExerciseStatusFilePlugin.startMultiFeedbackUpload(" + assignmentId + ")\" " +
+                                        "<button id=\"start-upload-btn\" onclick=\"window.ExerciseStatusFilePlugin.startMultiFeedbackUpload(0)\" " +
                                                 "style=\"padding: 8px 15px; background: #6c757d; color: white; border: none; border-radius: 3px; cursor: pointer;\" disabled>" +
                                             "📤 ' . $txt['upload_start'] . '" +
                                         "</button>" +
@@ -225,13 +213,6 @@ class ilExTeamButtonRenderer
                         
                         overlay.appendChild(modal);
                         document.body.appendChild(overlay);
-                        
-                        if (!document.getElementById("spinner-css")) {
-                            var spinnerCSS = document.createElement("style");
-                            spinnerCSS.id = "spinner-css";
-                            spinnerCSS.textContent = "@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }";
-                            document.head.appendChild(spinnerCSS);
-                        }
                         
                         this.switchTab(assignmentId, "download");
                         
@@ -266,6 +247,146 @@ class ilExTeamButtonRenderer
                         }
                     },
                     
+                    toggleAllTeams: function() {
+                        var selectAll = document.getElementById("select-all-teams");
+                        var checkboxes = document.querySelectorAll(".team-checkbox");
+                        
+                        checkboxes.forEach(function(checkbox) {
+                            checkbox.checked = selectAll.checked;
+                        });
+                        
+                        this.updateSelectedTeamsCount();
+                    },
+                    
+                    updateSelectedTeamsCount: function() {
+                        var checkboxes = document.querySelectorAll(".team-checkbox:checked");
+                        var countDiv = document.getElementById("selected-teams-count");
+                        var startButton = document.getElementById("start-download-btn");
+                        
+                        if (countDiv) {
+                            var count = checkboxes.length;
+                            countDiv.textContent = "' . $txt['team_selected_count'] . '".replace("{count}", count);
+                        }
+                        
+                        if (startButton) {
+                            var hasSelection = checkboxes.length > 0;
+                            startButton.disabled = !hasSelection;
+                            startButton.style.background = hasSelection ? "#28a745" : "#6c757d";
+                            startButton.style.cursor = hasSelection ? "pointer" : "not-allowed";
+                        }
+                    },
+                    
+                    startMultiFeedbackProcessing: function(assignmentId) {
+                        var selectedTeams = [];
+                        document.querySelectorAll(".team-checkbox:checked").forEach(function(checkbox) {
+                            selectedTeams.push(parseInt(checkbox.value));
+                        });
+                        
+                        if (selectedTeams.length === 0) {
+                            alert("' . $txt['error_no_teams_selected'] . '");
+                            return;
+                        }
+                        
+                        this.closeTeamModal();
+                        this.initiateMultiFeedbackDownload(assignmentId, selectedTeams);
+                    },
+                    
+                    initiateMultiFeedbackDownload: function(assignmentId, teamIds) {
+                        this.showProgressModal(assignmentId, teamIds);
+                        
+                        var xhr = new XMLHttpRequest();
+                        xhr.open("POST", window.location.pathname, true);
+                        xhr.responseType = "blob";
+                        
+                        var formData = new FormData();
+                        formData.append("ass_id", assignmentId);
+                        formData.append("team_ids", teamIds.join(","));
+                        formData.append("plugin_action", "multi_feedback_download");
+                        
+                        xhr.onload = function() {
+                            if (xhr.status === 200) {
+                                var blob = xhr.response;
+                                var url = window.URL.createObjectURL(blob);
+                                var a = document.createElement("a");
+                                a.href = url;
+                                a.download = "Multi_Feedback_Download.zip";
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                window.URL.revokeObjectURL(url);
+                                
+                                window.ExerciseStatusFilePlugin.closeProgressModal();
+                            } else {
+                                var reader = new FileReader();
+                                reader.onload = function() {
+                                    var errorMsg = "Download fehlgeschlagen";
+                                    try {
+                                        var errorData = JSON.parse(reader.result);
+                                        errorMsg = errorData.message || errorMsg;
+                                        if (errorData.details) {
+                                            errorMsg += "\\n\\n" + errorData.details;
+                                        }
+                                    } catch(e) {
+                                        errorMsg = reader.result || errorMsg;
+                                    }
+                                    window.ExerciseStatusFilePlugin.showDownloadError(errorMsg, assignmentId);
+                                };
+                                reader.readAsText(xhr.response);
+                            }
+                        };
+                        
+                        xhr.onerror = function() {
+                            window.ExerciseStatusFilePlugin.showDownloadError("' . $txt['error_network'] . '", assignmentId);
+                        };
+                        
+                        xhr.send(formData);
+                    },
+                    
+                    showProgressModal: function(assignmentId, teamIds) {
+                        var progressOverlay = document.createElement("div");
+                        progressOverlay.id = "progress-modal";
+                        progressOverlay.style.cssText = "position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10001; display: flex; align-items: center; justify-content: center;";
+                        
+                        progressOverlay.innerHTML = 
+                            "<div style=\"background: white; border-radius: 8px; padding: 30px; text-align: center; min-width: 300px;\">" +
+                                "<div style=\"margin-bottom: 20px;\">" +
+                                    "<div style=\"display: inline-block; width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid #28a745; border-radius: 50%; animation: spin 1s linear infinite;\"></div>" +
+                                "</div>" +
+                                "<h4 style=\"margin: 0 0 10px 0; color: #28a745;\">' . $txt['team_download_generating'] . '</h4>" +
+                                "<p style=\"margin: 0; color: #666;\">' . $txt['team_download_auto'] . '</p>" +
+                            "</div>";
+                        
+                        document.body.appendChild(progressOverlay);
+                    },
+                    
+                    closeProgressModal: function() {
+                        var modal = document.getElementById("progress-modal");
+                        if (modal) modal.remove();
+                    },
+                    
+                    showDownloadError: function(errorMessage, assignmentId) {
+                        var progressModal = document.getElementById("progress-modal");
+                        if (progressModal) progressModal.remove();
+                        
+                        this.showTeamFeedbackModal(assignmentId);
+                        
+                        setTimeout(function() {
+                            var downloadContent = document.getElementById("download-content");
+                            if (downloadContent) {
+                                downloadContent.innerHTML = 
+                                    "<div style=\"text-align: center; padding: 40px;\">" +
+                                        "<div style=\"font-size: 48px; color: #dc3545; margin-bottom: 20px;\">⚠️</div>" +
+                                        "<h4 style=\"color: #dc3545; margin-bottom: 15px;\">Download Fehler</h4>" +
+                                        "<p style=\"color: #666; white-space: pre-line;\">" + errorMessage + "</p>" +
+                                        "<button onclick=\"window.ExerciseStatusFilePlugin.switchTab(" + assignmentId + ", \'download\')\" " +
+                                                "style=\"margin-top: 20px; padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;\">" +
+                                            "Erneut versuchen" +
+                                        "</button>" +
+                                    "</div>";
+                            }
+                        }, 100);
+                    },
+                    
                     handleFileSelect: function() {
                         var fileInput = document.getElementById("upload-file");
                         var uploadInfo = document.getElementById("upload-info");
@@ -275,22 +396,22 @@ class ilExTeamButtonRenderer
                         if (fileInput.files.length > 0) {
                             var file = fileInput.files[0];
                             
-                            this.removeFileValidationError();
-                            
                             var validationError = this.validateUploadFile(file);
                             if (validationError) {
                                 this.showFileValidationError(validationError);
+                                fileInput.value = "";
                                 return;
                             }
                             
+                            this.removeFileValidationError();
+                            
                             if (fileInfo) {
                                 fileInfo.innerHTML = 
-                                    "<strong>" + file.name + "</strong><br>" +
+                                    "' . $txt['file_info_name'] . ': " + file.name + "<br>" +
                                     "' . $txt['file_info_size'] . ': " + this.formatFileSize(file.size) + "<br>" +
                                     "' . $txt['file_info_type'] . ': " + file.type + "<br>" +
                                     "' . $txt['file_info_modified'] . ': " + new Date(file.lastModified).toLocaleString() + "<br>" +
-                                    "<span style=\"color: #28a745;\">✅ ' . $txt['upload_file_ready'] . '</span><br>" +
-                                    "<small style=\"color: #666;\">' . $txt['upload_file_validation_detail'] . '</small>";
+                                    "<span style=\"color: #28a745;\">✅ ' . $txt['upload_file_ready'] . '</span>";
                             }
                             
                             if (uploadInfo) {
@@ -303,7 +424,6 @@ class ilExTeamButtonRenderer
                             }
                             
                         } else {
-                            this.removeFileValidationError();
                             if (uploadInfo) uploadInfo.style.display = "none";
                             if (uploadBtn) {
                                 uploadBtn.disabled = true;
@@ -313,26 +433,16 @@ class ilExTeamButtonRenderer
                     },
                     
                     validateUploadFile: function(file) {
-                        if (file.size === 0) {
-                            return "' . $txt['file_error_empty'] . '";
-                        }
-                        
-                        if (file.size < 100) {
-                            return "' . $txt['file_error_too_small'] . '";
-                        }
-                        
-                        var maxSize = 100 * 1024 * 1024;
-                        if (file.size > maxSize) {
-                            return "' . $txt['file_error_too_large'] . '";
-                        }
+                        if (!file) return "' . $txt['file_error_title'] . '";
                         
                         var fileName = file.name.toLowerCase();
-                        var fileType = file.type.toLowerCase();
+                        var fileType = file.type;
                         
-                        if (!fileName.endsWith(\'.zip\') && 
-                            !fileType.includes(\'zip\') && 
-                            fileType !== \'application/x-zip-compressed\' &&
-                            fileType !== \'application/zip\') {
+                        var isZip = fileName.endsWith(".zip") || 
+                                    fileType === "application/zip" || 
+                                    fileType === "application/x-zip-compressed";
+                        
+                        if (!isZip) {
                             return "' . $txt['file_error_not_zip'] . ' ' . $txt['file_error_current_file'] . ': " + 
                                 file.name + " (" + (fileType || "' . $txt['file_error_unknown_type'] . '") + ")";
                         }
@@ -458,9 +568,9 @@ class ilExTeamButtonRenderer
                             "<div style=\"text-align: center; padding: 40px;\">" +
                                 "<div style=\"font-size: 48px; margin-bottom: 20px;\">⬆️</div>" +
                                 "<h4 style=\"color: #28a745; margin-bottom: 15px;\">' . $txt['upload_in_progress'] . '</h4>" +
-                                "<p style=\"margin-bottom: 20px;\"><strong>" + filename + "</strong></p>" +
-                                "<div style=\"width: 100%; height: 20px; background: #f0f0f0; border-radius: 10px; overflow: hidden;\">" +
-                                    "<div id=\"upload-progress-bar\" style=\"width: 0%; height: 100%; background: #28a745; transition: width 0.3s;\"></div>" +
+                                "<p style=\"color: #666; margin-bottom: 20px;\">" + filename + "</p>" +
+                                "<div style=\"width: 100%; background: #e9ecef; border-radius: 10px; overflow: hidden; height: 30px;\">" +
+                                    "<div id=\"upload-progress-bar\" style=\"width: 0%; height: 100%; background: linear-gradient(90deg, #28a745, #20c997); transition: width 0.3s;\"></div>" +
                                 "</div>" +
                                 "<p id=\"upload-progress-text\" style=\"margin-top: 10px; color: #666;\">0%</p>" +
                             "</div>";
@@ -473,33 +583,32 @@ class ilExTeamButtonRenderer
                         if (progressBar) {
                             progressBar.style.width = percent + "%";
                         }
+                        
                         if (progressText) {
                             progressText.textContent = Math.round(percent) + "%";
                         }
                     },
                     
-                    handleUploadSuccess: function(response) {
+                    handleUploadSuccess: function(responseText) {
                         var uploadContent = document.getElementById("upload-content");
                         uploadContent.innerHTML = 
-                            "<div style=\"text-align: center; padding: 40px; color: #28a745;\">" +
-                                "<div style=\"font-size: 64px; margin-bottom: 20px;\">✅</div>" +
-                                "<h4>' . $txt['upload_success'] . '</h4>" +
-                                "<p style=\"color: #666; margin-top: 15px;\">' . $txt['upload_success_message'] . '</p>" +
-                                "<p style=\"color: #666; font-size: 14px; margin-top: 10px;\">' . $txt['upload_success_reload'] . '</p>" +
+                            "<div style=\"text-align: center; padding: 40px;\">" +
+                                "<div style=\"font-size: 48px; color: #28a745; margin-bottom: 20px;\">✅</div>" +
+                                "<h4 style=\"color: #28a745; margin-bottom: 15px;\">' . $txt['upload_success'] . '</h4>" +
+                                "<p style=\"color: #666;\">' . $txt['upload_success_msg'] . '</p>" +
+                                "<button onclick=\"window.location.reload()\" " +
+                                        "style=\"margin-top: 20px; padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;\">" +
+                                    "' . $txt['upload_reload_page'] . '" +
+                                "</button>" +
                             "</div>";
-                        
-                        setTimeout(function() {
-                            window.ExerciseStatusFilePlugin.closeTeamModal();
-                            window.location.reload();
-                        }, 2000);
                     },
                     
                     handleUploadError: function(error) {
                         var uploadContent = document.getElementById("upload-content");
                         uploadContent.innerHTML = 
-                            "<div style=\"text-align: center; padding: 40px; color: #dc3545;\">" +
-                                "<div style=\"font-size: 64px; margin-bottom: 20px;\">❌</div>" +
-                                "<h4>' . $txt['upload_error'] . '</h4>" +
+                            "<div style=\"text-align: center; padding: 40px;\">" +
+                                "<div style=\"font-size: 48px; color: #dc3545; margin-bottom: 20px;\">❌</div>" +
+                                "<h4 style=\"color: #dc3545; margin-bottom: 15px;\">' . $txt['upload_error'] . '</h4>" +
                                 "<p style=\"color: #666; margin-top: 15px;\">" + error + "</p>" +
                                 "<button onclick=\"window.ExerciseStatusFilePlugin.switchTab(0, \'upload\')\" " +
                                         "style=\"margin-top: 20px; padding: 10px 20px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;\">" +
@@ -545,158 +654,26 @@ class ilExTeamButtonRenderer
                         
                         var teamsHTML = "";
                         teams.forEach(function(team) {
-                            var membersText = "";
-                            if (team.members && Array.isArray(team.members)) {
-                                var memberNames = team.members.map(function(member) {
-                                    if (member.firstname && member.lastname && member.login) {
-                                        return member.firstname + " " + member.lastname + " (" + member.login + ")";
-                                    } else {
-                                        return member.login || "Unknown Member";
-                                    }
-                                });
-                                membersText = memberNames.join(", ");
-                            } else {
-                                membersText = "Keine Mitglieder-Daten verfügbar";
-                            }
-                            
-                            var memberCount = team.member_count || (team.members ? team.members.length : 0);
+                            var statusColor = team.status === "passed" ? "#28a745" : (team.status === "failed" ? "#dc3545" : "#6c757d");
                             
                             teamsHTML += 
-                                "<div style=\"border: 1px solid #ddd; border-radius: 5px; padding: 10px; margin-bottom: 8px; background: #fafafa;\">" +
-                                    "<label style=\"display: flex; align-items: flex-start; cursor: pointer;\">" +
-                                        "<input type=\"checkbox\" class=\"team-checkbox\" value=\"" + team.team_id + "\" " +
-                                            "style=\"margin-right: 10px; margin-top: 2px;\">" +
+                                "<div style=\"padding: 10px; margin-bottom: 8px; border: 1px solid #ddd; border-radius: 5px; background: #f8f9fa;\">" +
+                                    "<label style=\"cursor: pointer; display: flex; align-items: center;\">" +
+                                        "<input type=\"checkbox\" class=\"team-checkbox\" value=\"" + team.team_id + "\" onchange=\"window.ExerciseStatusFilePlugin.updateSelectedTeamsCount()\" style=\"margin-right: 10px;\">" +
                                         "<div style=\"flex: 1;\">" +
-                                            "<strong>Team " + team.team_id + "</strong>" +
-                                            "<div style=\"font-size: 0.9em; color: #666; margin-top: 3px;\">" +
-                                                memberCount + " ' . $txt['team_member_count'] . ': " + membersText +
-                                            "</div>" +
-                                            "<div style=\"font-size: 0.8em; color: #999; margin-top: 2px;\">" +
-                                                "' . $txt['team_status'] . ': " + (team.status || "' . $this->plugin->txt('status_notgraded') . '") +
-                                            "</div>" +
+                                            "<strong>Team " + team.team_id + "</strong><br>" +
+                                            "<small style=\"color: #666;\">" + team.member_names + "</small><br>" +
+                                            "<span style=\"display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin-top: 5px; background: " + statusColor + "; color: white;\">" +
+                                                team.status +
+                                            "</span>" +
                                         "</div>" +
                                     "</label>" +
                                 "</div>";
                         });
                         
                         teamsList.innerHTML = teamsHTML;
-                        this.setupTeamSelectionEvents();
-                        
                         loadingDiv.style.display = "none";
                         selectionDiv.style.display = "block";
-                    },
-                    
-                    setupTeamSelectionEvents: function() {
-                        var selectAllCheckbox = document.getElementById("select-all-teams");
-                        var teamCheckboxes = document.querySelectorAll(".team-checkbox");
-                        
-                        selectAllCheckbox.addEventListener("change", function() {
-                            teamCheckboxes.forEach(function(checkbox) {
-                                checkbox.checked = selectAllCheckbox.checked;
-                            });
-                            window.ExerciseStatusFilePlugin.updateSelectionCount();
-                        });
-                        
-                        teamCheckboxes.forEach(function(checkbox) {
-                            checkbox.addEventListener("change", function() {
-                                window.ExerciseStatusFilePlugin.updateSelectionCount();
-                                
-                                var checkedCount = document.querySelectorAll(".team-checkbox:checked").length;
-                                selectAllCheckbox.checked = (checkedCount === teamCheckboxes.length);
-                                selectAllCheckbox.indeterminate = (checkedCount > 0 && checkedCount < teamCheckboxes.length);
-                            });
-                        });
-                    },
-                    
-                    updateSelectionCount: function() {
-                        var checkedBoxes = document.querySelectorAll(".team-checkbox:checked");
-                        var selectedCountSpan = document.getElementById("selected-count");
-                        var startButton = document.getElementById("start-download-btn");
-                        
-                        selectedCountSpan.textContent = checkedBoxes.length;
-                        startButton.disabled = (checkedBoxes.length === 0);
-                        
-                        if (checkedBoxes.length === 0) {
-                            startButton.style.background = "#6c757d";
-                        } else {
-                            startButton.style.background = "#28a745";
-                        }
-                    },
-                    
-                    startMultiFeedbackProcessing: function(assignmentId) {
-                        var selectedTeams = [];
-                        document.querySelectorAll(".team-checkbox:checked").forEach(function(checkbox) {
-                            selectedTeams.push(parseInt(checkbox.value));
-                        });
-                        
-                        if (selectedTeams.length === 0) {
-                            alert("' . $txt['error_no_teams_selected'] . '");
-                            return;
-                        }
-                        
-                        this.closeTeamModal();
-                        this.initiateMultiFeedbackDownload(assignmentId, selectedTeams);
-                    },
-                    
-                    initiateMultiFeedbackDownload: function(assignmentId, teamIds) {
-                        this.showProgressModal(assignmentId, teamIds);
-                        
-                        var form = document.createElement("form");
-                        form.method = "POST";
-                        form.action = window.location.pathname;
-                        form.style.display = "none";
-
-                        var params = {
-                            "ass_id": assignmentId,
-                            "team_ids": teamIds.join(","),
-                            "plugin_action": "multi_feedback_download"
-                        };
-                            
-                        for (var key in params) {
-                            var input = document.createElement("input");
-                            input.type = "hidden";
-                            input.name = key;
-                            input.value = params[key];
-                            form.appendChild(input);
-                        }
-                        
-                        document.body.appendChild(form);
-                        form.submit();
-                        
-                        setTimeout(function() {
-                            if (form.parentNode) {
-                                form.parentNode.removeChild(form);
-                            }
-                        }, 1000);
-                    },
-                    
-                    showProgressModal: function(assignmentId, teamIds) {
-                        var progressOverlay = document.createElement("div");
-                        progressOverlay.id = "progress-modal";
-                        progressOverlay.style.cssText = "position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10001; display: flex; align-items: center; justify-content: center;";
-                        
-                        progressOverlay.innerHTML = 
-                            "<div style=\"background: white; border-radius: 8px; padding: 30px; text-align: center; min-width: 300px;\">" +
-                                "<div style=\"margin-bottom: 20px;\">" +
-                                    "<div style=\"display: inline-block; width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid #28a745; border-radius: 50%; animation: spin 1s linear infinite;\"></div>" +
-                                "</div>" +
-                                "<h4 style=\"margin: 0 0 10px 0; color: #28a745;\">' . $txt['team_download_generating'] . '</h4>" +
-                                "<p style=\"margin: 0; color: #666;\">" +
-                                    "' . $txt['progress_assignment'] . ': " + assignmentId + "<br>" +
-                                    "' . $txt['progress_teams'] . ': " + teamIds.length + " ' . $txt['progress_selected'] . '<br>" +
-                                    "<small>' . $txt['team_download_auto'] . '</small>" +
-                                "</p>" +
-                                "<button onclick=\"window.ExerciseStatusFilePlugin.closeProgressModal()\" " +
-                                        "style=\"margin-top: 20px; padding: 8px 15px; background: #6c757d; color: white; border: none; border-radius: 3px; cursor: pointer;\">" +
-                                    "' . $txt['modal_close'] . '" +
-                                "</button>" +
-                            "</div>";
-                        
-                        document.body.appendChild(progressOverlay);
-                        
-                        setTimeout(function() {
-                            window.ExerciseStatusFilePlugin.closeProgressModal();
-                        }, 10000);
                     },
                     
                     showTeamsError: function(message) {
@@ -715,11 +692,6 @@ class ilExTeamButtonRenderer
                     
                     closeTeamModal: function() {
                         var modal = document.getElementById("team-feedback-modal");
-                        if (modal) modal.remove();
-                    },
-                    
-                    closeProgressModal: function() {
-                        var modal = document.getElementById("progress-modal");
                         if (modal) modal.remove();
                     },
                     
@@ -753,26 +725,23 @@ class ilExTeamButtonRenderer
                                 "</div>" +
                             "</div>" +
                             
-                            "<div style=\"padding: 20px; max-height: 500px; overflow-y: auto;\">" +
-                                
+                            "<div style=\"padding: 20px; max-height: 70vh; overflow-y: auto;\">" +
                                 "<div id=\"individual-download-content\">" +
                                     "<div id=\"individual-loading\" style=\"text-align: center; padding: 20px;\">" +
-                                        "<div style=\"display: inline-block; width: 40px; height: 40px; border: 3px solid #f3f3f3; border-top: 3px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite;\"></div>" +
-                                        "<p style=\"margin-top: 10px;\">' . $txt['individual_loading'] . '</p>" +
+                                        "<div style=\"font-size: 2em; margin-bottom: 10px;\">⏳</div>" +
+                                        "<p>' . $txt['individual_loading'] . '</p>" +
                                     "</div>" +
-                                    
                                     "<div id=\"individual-selection\" style=\"display: none;\">" +
-                                        "<h4 style=\"margin-top: 0; color: #007bff;\">📥 ' . $txt['individual_select_for_download'] . '</h4>" +
-                                        "<div style=\"margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px;\">" +
-                                            "<label style=\"display: flex; align-items: center; cursor: pointer;\">" +
-                                                "<input type=\"checkbox\" id=\"individual-select-all\" style=\"margin-right: 10px;\">" +
+                                        "<h4 style=\"margin-top: 0;\">' . $txt['individual_select_for_download'] . '</h4>" +
+                                        "<div style=\"margin-bottom: 15px;\">" +
+                                            "<label style=\"cursor: pointer;\">" +
+                                                "<input type=\"checkbox\" id=\"select-all-users\" onchange=\"window.ExerciseStatusFilePlugin.toggleAllIndividualUsers()\" style=\"margin-right: 5px;\">" +
                                                 "<strong>' . $txt['individual_select_all'] . '</strong>" +
                                             "</label>" +
                                         "</div>" +
-                                        "<div id=\"individual-list\" style=\"max-height: 250px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px; padding: 10px;\">" +
-                                        "</div>" +
+                                        "<div id=\"users-list\" style=\"max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px; padding: 10px;\"></div>" +
                                         "<div style=\"margin-top: 15px; display: flex; justify-content: space-between; align-items: center;\">" +
-                                            "<div><span id=\"individual-selected-count\">0</span> ' . $txt['individual_selected_count'] . '</div>" +
+                                            "<div id=\"selected-users-count\" style=\"color: #666;\">' . $txt['individual_selected_count'] . '</div>" +
                                             "<button id=\"individual-start-download-btn\" onclick=\"window.ExerciseStatusFilePlugin.startIndividualMultiFeedbackProcessing(" + assignmentId + ")\" " +
                                                     "style=\"padding: 8px 15px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;\" disabled>" +
                                                 "📥 ' . $txt['individual_download_start'] . '" +
@@ -854,115 +823,29 @@ class ilExTeamButtonRenderer
                         }
                     },
                     
-                    loadIndividualUsersForAssignment: function(assignmentId) {
-                        var xhr = new XMLHttpRequest();
-                        var url = window.location.pathname + "?cmd=members&ass_id=" + assignmentId + "&plugin_action=get_individual_users";
+                    toggleAllIndividualUsers: function() {
+                        var selectAll = document.getElementById("select-all-users");
+                        var checkboxes = document.querySelectorAll(".individual-user-checkbox");
                         
-                        xhr.open("GET", url, true);
-                        xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
-                        
-                        xhr.onreadystatechange = function() {
-                            if (xhr.readyState === 4) {
-                                if (xhr.status === 200) {
-                                    try {
-                                        var response = JSON.parse(xhr.responseText);
-                                        if (response.success && response.users) {
-                                            window.ExerciseStatusFilePlugin.displayIndividualUsers(response.users, assignmentId);
-                                        } else {
-                                            window.ExerciseStatusFilePlugin.showIndividualUsersError("' . $txt['individual_no_users_found'] . '");
-                                        }
-                                    } catch (e) {
-                                        window.ExerciseStatusFilePlugin.showIndividualUsersError("' . $txt['individual_error_loading'] . ': " + e.message);
-                                    }
-                                } else {
-                                    window.ExerciseStatusFilePlugin.showIndividualUsersError("' . $txt['error_http'] . ' " + xhr.status);
-                                }
-                            }
-                        };
-                        
-                        xhr.send();
-                    },
-                    
-                    displayIndividualUsers: function(users, assignmentId) {
-                        var loadingDiv = document.getElementById("individual-loading");
-                        var selectionDiv = document.getElementById("individual-selection");
-                        var usersList = document.getElementById("individual-list");
-                        
-                        if (!users || users.length === 0) {
-                            this.showIndividualUsersError("' . $txt['individual_no_users_found'] . '");
-                            return;
-                        }
-                        
-                        var usersHTML = "";
-                        users.forEach(function(user) {
-                            var hasSubmissionIcon = user.has_submission ? 
-                                "<span style=\"color: #5cb85c;\">✅ ' . $txt['individual_submission_available'] . '</span>" : 
-                                "<span style=\"color: #999;\">❌ ' . $txt['individual_no_submission'] . '</span>";
-                            
-                            usersHTML += 
-                                "<div style=\"border: 1px solid #ddd; border-radius: 5px; padding: 10px; margin-bottom: 8px; background: #fafafa;\">" +
-                                    "<label style=\"display: flex; align-items: flex-start; cursor: pointer;\">" +
-                                        "<input type=\"checkbox\" class=\"individual-user-checkbox\" value=\"" + user.user_id + "\" " +
-                                            "style=\"margin-right: 10px; margin-top: 2px;\">" +
-                                        "<div style=\"flex: 1;\">" +
-                                            "<strong>" + user.lastname + ", " + user.firstname + "</strong> (" + user.login + ")" +
-                                            "<div style=\"font-size: 0.85em; margin-top: 5px;\">" +
-                                                hasSubmissionIcon +
-                                            "</div>" +
-                                        "</div>" +
-                                    "</label>" +
-                                "</div>";
+                        checkboxes.forEach(function(checkbox) {
+                            checkbox.checked = selectAll.checked;
                         });
                         
-                        usersList.innerHTML = usersHTML;
-                        this.setupIndividualUserSelectionEvents();
-                        
-                        loadingDiv.style.display = "none";
-                        selectionDiv.style.display = "block";
+                        this.updateSelectedUsersCount();
                     },
                     
-                    setupIndividualUserSelectionEvents: function() {
-                        var self = this;
-                        var selectAllCheckbox = document.getElementById("individual-select-all");
-                        var userCheckboxes = document.querySelectorAll(".individual-user-checkbox");
-                        
-                        if (selectAllCheckbox) {
-                            selectAllCheckbox.addEventListener("change", function() {
-                                userCheckboxes.forEach(function(checkbox) {
-                                    checkbox.checked = selectAllCheckbox.checked;
-                                });
-                                self.updateIndividualSelectionCount();
-                            });
-                        }
-                        
-                        userCheckboxes.forEach(function(checkbox) {
-                            checkbox.addEventListener("change", function() {
-                                self.updateIndividualSelectionCount();
-                                
-                                var totalCheckboxes = userCheckboxes.length;
-                                var checkedCount = document.querySelectorAll(".individual-user-checkbox:checked").length;
-                                
-                                if (selectAllCheckbox) {
-                                    selectAllCheckbox.checked = (checkedCount === totalCheckboxes);
-                                    selectAllCheckbox.indeterminate = (checkedCount > 0 && checkedCount < totalCheckboxes);
-                                }
-                            });
-                        });
-                        
-                        this.updateIndividualSelectionCount();
-                    },
-                    
-                    updateIndividualSelectionCount: function() {
-                        var checkedBoxes = document.querySelectorAll(".individual-user-checkbox:checked");
-                        var selectedCountSpan = document.getElementById("individual-selected-count");
+                    updateSelectedUsersCount: function() {
+                        var checkboxes = document.querySelectorAll(".individual-user-checkbox:checked");
+                        var countDiv = document.getElementById("selected-users-count");
                         var startButton = document.getElementById("individual-start-download-btn");
                         
-                        if (selectedCountSpan) {
-                            selectedCountSpan.textContent = checkedBoxes.length;
+                        if (countDiv) {
+                            var count = checkboxes.length;
+                            countDiv.textContent = "' . $txt['individual_selected_count'] . '".replace("{count}", count);
                         }
                         
                         if (startButton) {
-                            var hasSelection = checkedBoxes.length > 0;
+                            var hasSelection = checkboxes.length > 0;
                             startButton.disabled = !hasSelection;
                             startButton.style.background = hasSelection ? "#28a745" : "#6c757d";
                             startButton.style.cursor = hasSelection ? "pointer" : "not-allowed";
@@ -987,33 +870,52 @@ class ilExTeamButtonRenderer
                     initiateIndividualMultiFeedbackDownload: function(assignmentId, userIds) {
                         this.showIndividualProgressModal(assignmentId, userIds);
                         
-                        var form = document.createElement("form");
-                        form.method = "POST";
-                        form.action = window.location.pathname;
-                        form.style.display = "none";
-
-                        var params = {
-                            "ass_id": assignmentId,
-                            "user_ids": userIds.join(","),
-                            "plugin_action": "multi_feedback_download_individual"
-                        };
-                            
-                        for (var key in params) {
-                            var input = document.createElement("input");
-                            input.type = "hidden";
-                            input.name = key;
-                            input.value = params[key];
-                            form.appendChild(input);
-                        }
+                        var xhr = new XMLHttpRequest();
+                        xhr.open("POST", window.location.pathname, true);
+                        xhr.responseType = "blob";
                         
-                        document.body.appendChild(form);
-                        form.submit();
+                        var formData = new FormData();
+                        formData.append("ass_id", assignmentId);
+                        formData.append("user_ids", userIds.join(","));
+                        formData.append("plugin_action", "multi_feedback_download_individual");
                         
-                        setTimeout(function() {
-                            if (form.parentNode) {
-                                form.parentNode.removeChild(form);
+                        xhr.onload = function() {
+                            if (xhr.status === 200) {
+                                var blob = xhr.response;
+                                var url = window.URL.createObjectURL(blob);
+                                var a = document.createElement("a");
+                                a.href = url;
+                                a.download = "Individual_Multi_Feedback_Download.zip";
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                window.URL.revokeObjectURL(url);
+                                
+                                window.ExerciseStatusFilePlugin.closeIndividualProgressModal();
+                            } else {
+                                var reader = new FileReader();
+                                reader.onload = function() {
+                                    var errorMsg = "Download fehlgeschlagen";
+                                    try {
+                                        var errorData = JSON.parse(reader.result);
+                                        errorMsg = errorData.message || errorMsg;
+                                        if (errorData.details) {
+                                            errorMsg += "\\n\\n" + errorData.details;
+                                        }
+                                    } catch(e) {
+                                        errorMsg = reader.result || errorMsg;
+                                    }
+                                    window.ExerciseStatusFilePlugin.showIndividualDownloadError(errorMsg, assignmentId);
+                                };
+                                reader.readAsText(xhr.response);
                             }
-                        }, 1000);
+                        };
+                        
+                        xhr.onerror = function() {
+                            window.ExerciseStatusFilePlugin.showIndividualDownloadError("' . $txt['error_network'] . '", assignmentId);
+                        };
+                        
+                        xhr.send(formData);
                     },
                     
                     showIndividualProgressModal: function(assignmentId, userIds) {
@@ -1027,22 +929,38 @@ class ilExTeamButtonRenderer
                                     "<div style=\"display: inline-block; width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid #28a745; border-radius: 50%; animation: spin 1s linear infinite;\"></div>" +
                                 "</div>" +
                                 "<h4 style=\"margin: 0 0 10px 0; color: #28a745;\">' . $txt['individual_download_generating'] . '</h4>" +
-                                "<p style=\"margin: 0; color: #666;\">" +
-                                    "' . $txt['progress_assignment'] . ': " + assignmentId + "<br>" +
-                                    "' . $txt['progress_users'] . ': " + userIds.length + " ' . $txt['progress_selected'] . '<br>" +
-                                    "<small>' . $txt['team_download_auto'] . '</small>" +
-                                "</p>" +
-                                "<button onclick=\"window.ExerciseStatusFilePlugin.closeIndividualProgressModal()\" " +
-                                        "style=\"margin-top: 20px; padding: 8px 15px; background: #6c757d; color: white; border: none; border-radius: 3px; cursor: pointer;\">" +
-                                    "' . $txt['modal_close'] . '" +
-                                "</button>" +
+                                "<p style=\"margin: 0; color: #666;\">' . $txt['individual_download_auto'] . '</p>" +
                             "</div>";
                         
                         document.body.appendChild(progressOverlay);
+                    },
+                    
+                    closeIndividualProgressModal: function() {
+                        var modal = document.getElementById("individual-progress-modal");
+                        if (modal) modal.remove();
+                    },
+                    
+                    showIndividualDownloadError: function(errorMessage, assignmentId) {
+                        var progressModal = document.getElementById("individual-progress-modal");
+                        if (progressModal) progressModal.remove();
+                        
+                        this.showIndividualFeedbackModal(assignmentId);
                         
                         setTimeout(function() {
-                            window.ExerciseStatusFilePlugin.closeIndividualProgressModal();
-                        }, 10000);
+                            var downloadContent = document.getElementById("individual-download-content");
+                            if (downloadContent) {
+                                downloadContent.innerHTML = 
+                                    "<div style=\"text-align: center; padding: 40px;\">" +
+                                        "<div style=\"font-size: 48px; color: #dc3545; margin-bottom: 20px;\">⚠️</div>" +
+                                        "<h4 style=\"color: #dc3545; margin-bottom: 15px;\">Download Fehler</h4>" +
+                                        "<p style=\"color: #666; white-space: pre-line;\">" + errorMessage + "</p>" +
+                                        "<button onclick=\"window.ExerciseStatusFilePlugin.switchIndividualTab(" + assignmentId + ", \'download\')\" " +
+                                                "style=\"margin-top: 20px; padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;\">" +
+                                            "Erneut versuchen" +
+                                        "</button>" +
+                                    "</div>";
+                            }
+                        }, 100);
                     },
                     
                     handleIndividualFileSelect: function() {
@@ -1063,7 +981,7 @@ class ilExTeamButtonRenderer
                             
                             if (fileInfo) {
                                 fileInfo.innerHTML = 
-                                    "<strong>" + file.name + "</strong><br>" +
+                                    "' . $txt['file_info_name'] . ': " + file.name + "<br>" +
                                     "' . $txt['file_info_size'] . ': " + this.formatFileSize(file.size) + "<br>" +
                                     "' . $txt['file_info_type'] . ': " + file.type + "<br>" +
                                     "' . $txt['file_info_modified'] . ': " + new Date(file.lastModified).toLocaleString() + "<br>" +
@@ -1135,9 +1053,9 @@ class ilExTeamButtonRenderer
                             "<div style=\"text-align: center; padding: 40px;\">" +
                                 "<div style=\"font-size: 48px; margin-bottom: 20px;\">⬆️</div>" +
                                 "<h4 style=\"color: #28a745; margin-bottom: 15px;\">' . $txt['upload_in_progress'] . '</h4>" +
-                                "<p style=\"margin-bottom: 20px;\"><strong>" + filename + "</strong></p>" +
-                                "<div style=\"width: 100%; height: 20px; background: #f0f0f0; border-radius: 10px; overflow: hidden;\">" +
-                                    "<div id=\"individual-upload-progress-bar\" style=\"width: 0%; height: 100%; background: #28a745; transition: width 0.3s;\"></div>" +
+                                "<p style=\"color: #666; margin-bottom: 20px;\">" + filename + "</p>" +
+                                "<div style=\"width: 100%; background: #e9ecef; border-radius: 10px; overflow: hidden; height: 30px;\">" +
+                                    "<div id=\"individual-upload-progress-bar\" style=\"width: 0%; height: 100%; background: linear-gradient(90deg, #28a745, #20c997); transition: width 0.3s;\"></div>" +
                                 "</div>" +
                                 "<p id=\"individual-upload-progress-text\" style=\"margin-top: 10px; color: #666;\">0%</p>" +
                             "</div>";
@@ -1150,39 +1068,101 @@ class ilExTeamButtonRenderer
                         if (progressBar) {
                             progressBar.style.width = percent + "%";
                         }
+                        
                         if (progressText) {
                             progressText.textContent = Math.round(percent) + "%";
                         }
                     },
                     
-                    handleIndividualUploadSuccess: function(response) {
+    handleIndividualUploadSuccess: function(responseText) {
                         var uploadContent = document.getElementById("individual-upload-content");
                         uploadContent.innerHTML = 
-                            "<div style=\"text-align: center; padding: 40px; color: #28a745;\">" +
-                                "<div style=\"font-size: 64px; margin-bottom: 20px;\">✅</div>" +
-                                "<h4>' . $txt['upload_success'] . '</h4>" +
-                                "<p style=\"color: #666; margin-top: 15px;\">' . $txt['upload_success_message'] . '</p>" +
-                                "<p style=\"color: #666; font-size: 14px; margin-top: 10px;\">' . $txt['upload_success_reload'] . '</p>" +
+                            "<div style=\"text-align: center; padding: 40px;\">" +
+                                "<div style=\"font-size: 48px; color: #28a745; margin-bottom: 20px;\">✅</div>" +
+                                "<h4 style=\"color: #28a745; margin-bottom: 15px;\">' . $txt['upload_success'] . '</h4>" +
+                                "<p style=\"color: #666;\">' . $txt['upload_success_msg'] . '</p>" +
+                                "<button onclick=\"window.location.reload()\" " +
+                                        "style=\"margin-top: 20px; padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;\">" +
+                                    "' . $txt['upload_reload_page'] . '" +
+                                "</button>" +
                             "</div>";
-                        
-                        setTimeout(function() {
-                            window.ExerciseStatusFilePlugin.closeIndividualModal();
-                            window.location.reload();
-                        }, 2000);
                     },
                     
                     handleIndividualUploadError: function(error) {
                         var uploadContent = document.getElementById("individual-upload-content");
                         uploadContent.innerHTML = 
-                            "<div style=\"text-align: center; padding: 40px; color: #dc3545;\">" +
-                                "<div style=\"font-size: 64px; margin-bottom: 20px;\">❌</div>" +
-                                "<h4>' . $txt['upload_error'] . '</h4>" +
+                            "<div style=\"text-align: center; padding: 40px;\">" +
+                                "<div style=\"font-size: 48px; color: #dc3545; margin-bottom: 20px;\">❌</div>" +
+                                "<h4 style=\"color: #dc3545; margin-bottom: 15px;\">' . $txt['upload_error'] . '</h4>" +
                                 "<p style=\"color: #666; margin-top: 15px;\">" + error + "</p>" +
                                 "<button onclick=\"window.ExerciseStatusFilePlugin.switchIndividualTab(0, \'upload\')\" " +
                                         "style=\"margin-top: 20px; padding: 10px 20px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;\">" +
                                     "' . $txt['upload_retry'] . '" +
                                 "</button>" +
                             "</div>";
+                    },
+                    
+                    loadIndividualUsersForAssignment: function(assignmentId) {
+                        var xhr = new XMLHttpRequest();
+                        var url = window.location.pathname + "?cmd=members&ass_id=" + assignmentId + "&plugin_action=get_individual_users";
+                        
+                        xhr.open("GET", url, true);
+                        xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+                        
+                        xhr.onreadystatechange = function() {
+                            if (xhr.readyState === 4) {
+                                if (xhr.status === 200) {
+                                    try {
+                                        var response = JSON.parse(xhr.responseText);
+                                        if (response.success && response.users) {
+                                            window.ExerciseStatusFilePlugin.displayIndividualUsers(response.users, assignmentId);
+                                        } else {
+                                            window.ExerciseStatusFilePlugin.showIndividualUsersError("' . $txt['individual_no_users_found'] . '");
+                                        }
+                                    } catch (e) {
+                                        window.ExerciseStatusFilePlugin.showIndividualUsersError("' . $txt['individual_error_loading'] . ': " + e.message);
+                                    }
+                                } else {
+                                    window.ExerciseStatusFilePlugin.showIndividualUsersError("' . $txt['error_http'] . ' " + xhr.status);
+                                }
+                            }
+                        };
+                        
+                        xhr.send();
+                    },
+                    
+                    displayIndividualUsers: function(users, assignmentId) {
+                        var loadingDiv = document.getElementById("individual-loading");
+                        var selectionDiv = document.getElementById("individual-selection");
+                        var usersList = document.getElementById("users-list");
+                        
+                        if (!users || users.length === 0) {
+                            this.showIndividualUsersError("' . $txt['individual_no_users_found'] . '");
+                            return;
+                        }
+                        
+                        var usersHTML = "";
+                        users.forEach(function(user) {
+                            var statusColor = user.status === "passed" ? "#28a745" : (user.status === "failed" ? "#dc3545" : "#6c757d");
+                            
+                            usersHTML += 
+                                "<div style=\"padding: 10px; margin-bottom: 8px; border: 1px solid #ddd; border-radius: 5px; background: #f8f9fa;\">" +
+                                    "<label style=\"cursor: pointer; display: flex; align-items: center;\">" +
+                                        "<input type=\"checkbox\" class=\"individual-user-checkbox\" value=\"" + user.user_id + "\" onchange=\"window.ExerciseStatusFilePlugin.updateSelectedUsersCount()\" style=\"margin-right: 10px;\">" +
+                                        "<div style=\"flex: 1;\">" +
+                                            "<strong>" + user.fullname + "</strong><br>" +
+                                            "<small style=\"color: #666;\">" + user.login + "</small><br>" +
+                                            "<span style=\"display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin-top: 5px; background: " + statusColor + "; color: white;\">" +
+                                                user.status +
+                                            "</span>" +
+                                        "</div>" +
+                                    "</label>" +
+                                "</div>";
+                        });
+                        
+                        usersList.innerHTML = usersHTML;
+                        loadingDiv.style.display = "none";
+                        selectionDiv.style.display = "block";
                     },
                     
                     showIndividualUsersError: function(message) {
@@ -1204,11 +1184,6 @@ class ilExTeamButtonRenderer
                         if (modal) modal.remove();
                     },
                     
-                    closeIndividualProgressModal: function() {
-                        var modal = document.getElementById("individual-progress-modal");
-                        if (modal) modal.remove();
-                    },
-                    
                     // ==========================================
                     // SHARED UTILITY FUNKTIONEN
                     // ==========================================
@@ -1224,7 +1199,7 @@ class ilExTeamButtonRenderer
             }
         ');
     }
-        
+    
     /**
      * Team-Button in ILIAS-Toolbar rendern
      */
@@ -1270,7 +1245,7 @@ class ilExTeamButtonRenderer
             }, 500);
         ");
     }
-    
+
     /**
      * Individual-Button in ILIAS-Toolbar rendern
      */
@@ -1364,7 +1339,7 @@ class ilExTeamButtonRenderer
             if (!document.getElementById("exercise-status-plugin-css")) {
                 var style = document.createElement("style");
                 style.id = "exercise-status-plugin-css";
-                style.textContent = "' . 
+                style.textContent = "' .
                     '#plugin_team_button button:hover { ' .
                         'transform: translateY(-1px); ' .
                         'box-shadow: 0 2px 4px rgba(0,0,0,0.1); ' .
@@ -1375,6 +1350,10 @@ class ilExTeamButtonRenderer
                     '@keyframes slideIn { ' .
                         'from { opacity: 0; transform: translateY(-10px); } ' .
                         'to { opacity: 1; transform: translateY(0); } ' .
+                    '} ' .
+                    '@keyframes spin { ' .
+                        '0% { transform: rotate(0deg); } ' .
+                        '100% { transform: rotate(360deg); } ' .
                     '}' .
                 '";
                 document.head.appendChild(style);

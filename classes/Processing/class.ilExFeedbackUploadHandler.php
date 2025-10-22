@@ -392,7 +392,7 @@ class ilExFeedbackUploadHandler
                             $this->processing_stats['timestamp'] = date('Y-m-d H:i:s');
                             $updates_applied = true;
                             
-                            $this->logger->info("Applied $updates_count status updates from " . basename($file_path));
+                            $this->logger->debug("Applied $updates_count status updates from " . basename($file_path));
                             break;
                             
                         } else {
@@ -606,7 +606,7 @@ class ilExFeedbackUploadHandler
                 return;
             }
             
-            $this->logger->info("Processing feedback for team $team_id with " . count($member_ids) . " members");
+            $this->logger->debug("Processing feedback for team $team_id with " . count($member_ids) . " members");
             
             // Verarbeite Files für JEDES Team-Mitglied
             foreach ($member_ids as $member_id) {
@@ -642,7 +642,7 @@ class ilExFeedbackUploadHandler
                 return;
             }
             
-            $this->logger->info("Processing " . count($new_feedback_files) . " new feedback files for user $user_id");
+            $this->logger->debug("Processing " . count($new_feedback_files) . " new feedback files for user $user_id");
             
             $assignment = new \ilExAssignment($assignment_id);
             $is_team = $assignment->getAssignmentType()->usesTeams();
@@ -663,10 +663,10 @@ class ilExFeedbackUploadHandler
             $feedback_rcid = $this->getFeedbackCollectionIdFromDB($assignment_id, $participant_id);
             
             if (empty($feedback_rcid)) {
-                $this->logger->info("Using filesystem storage for participant $participant_id");
+                $this->logger->debug("Using filesystem storage for participant $participant_id");
                 $this->addFeedbackFilesViaFilesystem($user_id, $participant_id, $new_feedback_files, $assignment_id, $is_team);
             } else {
-                $this->logger->info("Using resource storage for participant $participant_id");
+                $this->logger->debug("Using resource storage for participant $participant_id");
                 $this->addFeedbackFilesViaResourceStorage($user_id, $participant_id, $new_feedback_files, $assignment_id, $is_team, $feedback_rcid);
             }
             
@@ -730,7 +730,7 @@ class ilExFeedbackUploadHandler
                 $member_status->setFeedback(true);
                 $member_status->update();
                 
-                $this->logger->info("Successfully added $files_added feedback files via resource storage for user $user_id");
+                $this->logger->debug("Successfully added $files_added feedback files via resource storage for user $user_id");
             }
             
         } catch (Exception $e) {
@@ -788,7 +788,7 @@ class ilExFeedbackUploadHandler
             $member_status->setFeedback(true);
             $member_status->update();
             
-            $this->logger->info("Successfully added $files_added feedback files via filesystem for user $user_id");
+            $this->logger->debug("Successfully added $files_added feedback files via filesystem for user $user_id");
         }
     }
 

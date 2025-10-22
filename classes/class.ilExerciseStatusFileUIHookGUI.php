@@ -236,39 +236,36 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
             $team_ids_string = $_POST['team_ids'] ?? '';
             
             if (!$assignment_id || !is_numeric($assignment_id)) {
-                throw new Exception("Invalid assignment ID");
+                throw new Exception("Ungültige Assignment-ID");
             }
             
             if (empty($team_ids_string)) {
-                throw new Exception("No teams selected");
+                throw new Exception("Keine Teams ausgewählt");
             }
             
-            // Team-IDs parsen
             $team_ids = array_map('intval', explode(',', $team_ids_string));
             $team_ids = array_filter($team_ids, function($id) { return $id > 0; });
             
             if (empty($team_ids)) {
-                throw new Exception("No valid team IDs provided");
+                throw new Exception("Keine gültigen Team-IDs");
             }
             
-            // Multi-Feedback Download Handler verwenden
             $multi_feedback_handler = new ilExMultiFeedbackDownloadHandler();
             $multi_feedback_handler->generateMultiFeedbackDownload((int)$assignment_id, $team_ids);
             
         } catch (Exception $e) {
             $this->logger->error("Multi-Feedback download error: " . $e->getMessage());
             
-            global $DIC;
-            if (isset($DIC['tpl'])) {
-                $tpl = $DIC->ui()->mainTemplate();
-                $tpl->setOnScreenMessage('failure', "Fehler beim Multi-Feedback-Download: " . $e->getMessage(), true);
-            }
+            // JSON Error Response für AJAX
+            header('Content-Type: application/json; charset=utf-8');
+            header('HTTP/1.1 500 Internal Server Error');
             
-            // Redirect zurück zur Members-Seite
-            if (isset($DIC['ilCtrl'])) {
-                $ctrl = $DIC->ctrl();
-                $ctrl->redirect(null, 'members');
-            }
+            echo json_encode([
+                'success' => false,
+                'message' => 'Fehler beim Multi-Feedback-Download',
+                'details' => $e->getMessage()
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
         }
     }
     
