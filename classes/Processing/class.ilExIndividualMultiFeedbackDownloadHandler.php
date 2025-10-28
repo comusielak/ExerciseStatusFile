@@ -264,16 +264,19 @@ class ilExIndividualMultiFeedbackDownloadHandler
             while ($row = $db->fetchAssoc($result)) {
                 $filename = $row['filename'];
                 
-                // Der filename in der DB enthält oft schon den relativen Pfad
-                // z.B.: ilExercise/10/39/exc_103946/subm_32/103630/20250626083054_what_jpg.jpg
-                
-                $client_data_dir = CLIENT_DATA_DIR;
-                
-                // Baue verschiedene mögliche Pfade
-                $possible_paths = [];
-                
-                // Variante 1: filename ist bereits relativer Pfad
+            $client_data_dir = CLIENT_DATA_DIR;
+
+            // Baue verschiedene mögliche Pfade
+            $possible_paths = [];
+
+            // NEU: Prüfe ob filename bereits absoluter Pfad ist (beginnt mit /)
+            if (strpos($filename, '/') === 0) {
+                // Absoluter Pfad → direkt verwenden (ohne CLIENT_DATA_DIR)
+                $possible_paths[] = $filename;
+            } else {
+                // Relativer Pfad → mit CLIENT_DATA_DIR kombinieren
                 $possible_paths[] = $client_data_dir . "/" . $filename;
+            }
                 
                 // Variante 2: filename ist nur der Dateiname, dann manuell Pfad bauen
                 if (strpos($filename, '/') === false) {
