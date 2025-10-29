@@ -46,21 +46,29 @@ class ilExMultiFeedbackDownloadHandler
     public function generateMultiFeedbackDownload(int $assignment_id, array $team_ids): void
     {
         try {
+            $this->logger->info("Multi-Feedback download started - Assignment: $assignment_id, Teams: " . count($team_ids));
+
             $assignment = new \ilExAssignment($assignment_id);
             if (!$assignment->getAssignmentType()->usesTeams()) {
                 throw new Exception("Assignment $assignment_id is not a team assignment");
             }
-            
+
             $validated_teams = $this->validateTeams($assignment_id, $team_ids);
             if (empty($validated_teams)) {
                 throw new Exception("No valid teams found");
             }
-            
+
+            $this->logger->info("Validated " . count($validated_teams) . " teams, starting ZIP creation...");
+
             $zip_path = $this->createMultiFeedbackZIP($assignment, $validated_teams);
+
+            $this->logger->info("ZIP created successfully, sending download...");
+
             $this->sendZIPDownload($zip_path, $assignment, $validated_teams);
-            
+
         } catch (Exception $e) {
             $this->logger->error("Multi-Feedback download error: " . $e->getMessage());
+            $this->logger->error("Stack trace: " . $e->getTraceAsString());
             $this->sendErrorResponse($e->getMessage());
         }
     }
@@ -515,19 +523,19 @@ class ilExMultiFeedbackDownloadHandler
      */
     private function sendErrorResponse(string $message): void
     {
-        global $DIC;
-        
-        if ($this->plugin && isset($DIC['tpl'])) {
-            $tpl = $DIC->ui()->mainTemplate();
-            $error_msg = $this->plugin->txt('error_multi_feedback_download') . ": " . $message;
-            $tpl->setOnScreenMessage('failure', $error_msg, true);
-        }
-        
-        // Redirect zurück zur Members-Seite
-        if (isset($DIC['ilCtrl'])) {
-            $ctrl = $DIC->ctrl();
-            $ctrl->redirectByClass('ilExerciseManagementGUI', 'members');
-        }
+        $this->logger->error("Multi-Feedback error: " . $message);
+
+        // JSON Error Response für AJAX (KEIN Redirect!)
+        header('Content-Type: application/json; charset=utf-8');
+        header('HTTP/1.1 400 Bad Request');
+
+        echo json_encode([
+            'success' => false,
+            'error' => true,
+            'message' => $message
+        ], JSON_UNESCAPED_UNICODE);
+
+        exit;
     }
     
     /**
@@ -538,10 +546,10 @@ class ilExMultiFeedbackDownloadHandler
         $base_name = $this->toAscii($assignment->getTitle());
         $team_count = count($teams);
         $timestamp = date('Y-m-d_H-i-s');
-        
+
         return "Multi_Feedback_{$base_name}_{$team_count}_Teams_{$timestamp}.zip";
     }
-    
+
     /**
      * Download-Filename generieren
      */
@@ -549,7 +557,7 @@ class ilExMultiFeedbackDownloadHandler
     {
         $base_name = $this->toAscii($assignment->getTitle());
         $team_count = count($teams);
-        
+
         return "Multi_Feedback_{$base_name}_{$team_count}_Teams.zip";
     }
     

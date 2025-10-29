@@ -46,23 +46,31 @@ class ilExIndividualMultiFeedbackDownloadHandler
     public function generateIndividualMultiFeedbackDownload(int $assignment_id, array $user_ids): void
     {
         try {
+            $this->logger->info("Individual Multi-Feedback download started - Assignment: $assignment_id, Users: " . count($user_ids));
+
             $assignment = new \ilExAssignment($assignment_id);
-            
+
             // Nur für Individual-Assignments
             if ($assignment->getAssignmentType()->usesTeams()) {
                 throw new Exception("Assignment $assignment_id is a team assignment");
             }
-            
+
             $validated_users = $this->validateUsers($assignment_id, $user_ids);
             if (empty($validated_users)) {
                 throw new Exception("No valid users found");
             }
-            
+
+            $this->logger->info("Validated " . count($validated_users) . " users, starting ZIP creation...");
+
             $zip_path = $this->createIndividualMultiFeedbackZIP($assignment, $validated_users);
+
+            $this->logger->info("ZIP created successfully, sending download...");
+
             $this->sendZIPDownload($zip_path, $assignment, $validated_users);
-            
+
         } catch (Exception $e) {
             $this->logger->error("Individual Multi-Feedback download error: " . $e->getMessage());
+            $this->logger->error("Stack trace: " . $e->getTraceAsString());
             $this->sendErrorResponse($e->getMessage());
         }
     }
@@ -384,19 +392,19 @@ class ilExIndividualMultiFeedbackDownloadHandler
      */
     private function sendErrorResponse(string $message): void
     {
-        global $DIC;
-        
-        if ($this->plugin && isset($DIC['tpl'])) {
-            $tpl = $DIC->ui()->mainTemplate();
-            $error_msg = $this->plugin->txt('error_multi_feedback_download') . ": " . $message;
-            $tpl->setOnScreenMessage('failure', $error_msg, true);
-        }
-        
-        // Redirect zurück zur Members-Seite
-        if (isset($DIC['ilCtrl'])) {
-            $ctrl = $DIC->ctrl();
-            $ctrl->redirectByClass('ilExerciseManagementGUI', 'members');
-        }
+        $this->logger->error("Multi-Feedback error: " . $message);
+
+        // JSON Error Response für AJAX (KEIN Redirect!)
+        header('Content-Type: application/json; charset=utf-8');
+        header('HTTP/1.1 400 Bad Request');
+
+        echo json_encode([
+            'success' => false,
+            'error' => true,
+            'message' => $message
+        ], JSON_UNESCAPED_UNICODE);
+
+        exit;
     }
     
     /**
@@ -407,10 +415,10 @@ class ilExIndividualMultiFeedbackDownloadHandler
         $base_name = $this->toAscii($assignment->getTitle());
         $user_count = count($users);
         $timestamp = date('Y-m-d_H-i-s');
-        
+
         return "Multi_Feedback_Individual_{$base_name}_{$user_count}_Users_{$timestamp}.zip";
     }
-    
+
     /**
      * Download-Filename generieren
      */
@@ -418,7 +426,7 @@ class ilExIndividualMultiFeedbackDownloadHandler
     {
         $base_name = $this->toAscii($assignment->getTitle());
         $user_count = count($users);
-        
+
         return "Multi_Feedback_Individual_{$base_name}_{$user_count}_Users.zip";
     }
     

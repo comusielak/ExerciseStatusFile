@@ -25,10 +25,10 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
     protected ilExerciseStatusFilePlugin $plugin;
     protected ilLogger $logger;
 
-    public function __construct(ilExerciseStatusFilePlugin $plugin) 
+    public function __construct(ilExerciseStatusFilePlugin $plugin)
     {
         $this->plugin = $plugin;
-        
+
         global $DIC;
         $this->logger = $DIC->logger()->root();
     }
@@ -40,11 +40,8 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
     {
         $return = ["mode" => ilUIHookPluginGUI::KEEP, "html" => ""];
 
-        // Multi-Feedback Download früh abfangen
-        if (isset($_POST['plugin_action']) && $_POST['plugin_action'] === 'multi_feedback_download') {
-            $this->handleMultiFeedbackDownloadRequest();
-            return $return;
-        }
+        // AJAX-Requests werden bereits in modifyGUI() -> handleAJAXRequests() abgefangen
+        // Hier nur noch die Hook-spezifischen Hooks verarbeiten
 
         if ($a_comp === "Modules/Exercise") {
             switch ($a_part) {
@@ -125,19 +122,23 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
             case 'get_teams':
                 $this->handleGetTeamsRequest();
                 return true;
-                              
+
+            case 'multi_feedback_download':
+                $this->handleMultiFeedbackDownloadRequest();
+                return true;
+
             case 'multi_feedback_upload':
                 $this->handleMultiFeedbackUploadRequest();
                 return true;
-                
+
             case 'get_individual_users':
                 $this->handleGetIndividualUsersRequest();
                 return true;
-                
+
             case 'multi_feedback_download_individual':
                 $this->handleMultiFeedbackDownloadIndividualRequest();
                 return true;
-                
+
             default:
                 return false;
         }
@@ -232,34 +233,38 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
     private function handleMultiFeedbackDownloadRequest(): void
     {
         try {
+            $this->logger->info("=== MULTI-FEEDBACK DOWNLOAD REQUEST STARTED ===");
+
             $assignment_id = $_POST['ass_id'] ?? null;
             $team_ids_string = $_POST['team_ids'] ?? '';
-            
+
+            $this->logger->info("Request params - Assignment: $assignment_id, Teams: $team_ids_string");
+
             if (!$assignment_id || !is_numeric($assignment_id)) {
                 throw new Exception("Ungültige Assignment-ID");
             }
-            
+
             if (empty($team_ids_string)) {
                 throw new Exception("Keine Teams ausgewählt");
             }
-            
+
             $team_ids = array_map('intval', explode(',', $team_ids_string));
             $team_ids = array_filter($team_ids, function($id) { return $id > 0; });
-            
+
             if (empty($team_ids)) {
                 throw new Exception("Keine gültigen Team-IDs");
             }
-            
+
             $multi_feedback_handler = new ilExMultiFeedbackDownloadHandler();
             $multi_feedback_handler->generateMultiFeedbackDownload((int)$assignment_id, $team_ids);
-            
+
         } catch (Exception $e) {
             $this->logger->error("Multi-Feedback download error: " . $e->getMessage());
-            
+
             // JSON Error Response für AJAX
             header('Content-Type: application/json; charset=utf-8');
             header('HTTP/1.1 500 Internal Server Error');
-            
+
             echo json_encode([
                 'success' => false,
                 'message' => 'Fehler beim Multi-Feedback-Download',
@@ -475,18 +480,18 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
             
         } catch (Exception $e) {
             $this->logger->error("Individual Multi-Feedback download error: " . $e->getMessage());
-            
-            global $DIC;
-            if (isset($DIC['tpl'])) {
-                $tpl = $DIC->ui()->mainTemplate();
-                $tpl->setOnScreenMessage('failure', "Fehler beim Individual Multi-Feedback-Download: " . $e->getMessage(), true);
-            }
-            
-            // Redirect zurück zur Members-Seite
-            if (isset($DIC['ilCtrl'])) {
-                $ctrl = $DIC->ctrl();
-                $ctrl->redirect(null, 'members');
-            }
+
+            // JSON Error Response für AJAX (KEIN Redirect!)
+            header('Content-Type: application/json; charset=utf-8');
+            header('HTTP/1.1 400 Bad Request');
+
+            echo json_encode([
+                'success' => false,
+                'error' => true,
+                'message' => "Fehler beim Individual Multi-Feedback-Download: " . $e->getMessage()
+            ], JSON_UNESCAPED_UNICODE);
+
+            exit;
         }
     }
 }
