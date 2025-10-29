@@ -49,7 +49,9 @@ upload_start#:#Upload starten
 upload_in_progress#:#Upload läuft...
 upload_progress#:#wird hochgeladen
 upload_success#:#Upload erfolgreich!
+upload_success_msg#:#Die Status-Updates wurden erfolgreich verarbeitet.
 upload_success_message#:#Die Status-Updates wurden verarbeitet.
+upload_reload_page#:#Seite neu laden
 upload_success_reload#:#Die Seite wird automatisch neu geladen...
 upload_error#:#Upload fehlgeschlagen
 upload_retry#:#Erneut versuchen

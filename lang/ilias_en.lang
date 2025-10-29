@@ -49,7 +49,9 @@ upload_start#:#Start upload
 upload_in_progress#:#Upload in progress...
 upload_progress#:#is being uploaded
 upload_success#:#Upload successful!
+upload_success_msg#:#Status updates have been processed successfully.
 upload_success_message#:#Status updates have been processed.
+upload_reload_page#:#Reload page
 upload_success_reload#:#The page will reload automatically...
 upload_error#:#Upload failed
 upload_retry#:#Try again
