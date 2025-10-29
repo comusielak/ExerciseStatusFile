@@ -181,7 +181,7 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
     {
         try {
             $assignment_id = $_POST['ass_id'] ?? null;
-            
+
             if (!$assignment_id || !is_numeric($assignment_id)) {
                 throw new Exception("Invalid assignment ID: " . var_export($assignment_id, true));
             }
@@ -233,12 +233,8 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
     private function handleMultiFeedbackDownloadRequest(): void
     {
         try {
-            $this->logger->info("=== MULTI-FEEDBACK DOWNLOAD REQUEST STARTED ===");
-
             $assignment_id = $_POST['ass_id'] ?? null;
             $team_ids_string = $_POST['team_ids'] ?? '';
-
-            $this->logger->info("Request params - Assignment: $assignment_id, Teams: $team_ids_string");
 
             if (!$assignment_id || !is_numeric($assignment_id)) {
                 throw new Exception("Ungültige Assignment-ID");

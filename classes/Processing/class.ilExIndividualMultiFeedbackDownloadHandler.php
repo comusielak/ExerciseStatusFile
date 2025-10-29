@@ -70,7 +70,6 @@ class ilExIndividualMultiFeedbackDownloadHandler
 
         } catch (Exception $e) {
             $this->logger->error("Individual Multi-Feedback download error: " . $e->getMessage());
-            $this->logger->error("Stack trace: " . $e->getTraceAsString());
             $this->sendErrorResponse($e->getMessage());
         }
     }

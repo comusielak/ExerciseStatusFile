@@ -68,7 +68,6 @@ class ilExMultiFeedbackDownloadHandler
 
         } catch (Exception $e) {
             $this->logger->error("Multi-Feedback download error: " . $e->getMessage());
-            $this->logger->error("Stack trace: " . $e->getTraceAsString());
             $this->sendErrorResponse($e->getMessage());
         }
     }

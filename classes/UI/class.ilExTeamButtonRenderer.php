@@ -118,12 +118,15 @@ class ilExTeamButtonRenderer
         $this->template->addOnLoadCode('
             if (typeof window.ExerciseStatusFilePlugin === "undefined") {
                 window.ExerciseStatusFilePlugin = {
-                    
+
                     // ==========================================
                     // TEAM MULTI-FEEDBACK FUNKTIONEN
                     // ==========================================
-                    
+
+                    currentAssignmentId: 0, // Speichere aktuelle Assignment-ID
+
                     startTeamMultiFeedback: function(assignmentId) {
+                        this.currentAssignmentId = assignmentId; // Speichere ID
                         this.showTeamFeedbackModal(assignmentId);
                     },
                     
@@ -195,7 +198,7 @@ class ilExTeamButtonRenderer
                                         "<div style=\"color: #666; font-size: 14px;\">" +
                                             "💡 ' . $txt['upload_hint'] . '" +
                                         "</div>" +
-                                        "<button id=\"start-upload-btn\" onclick=\"window.ExerciseStatusFilePlugin.startMultiFeedbackUpload(0)\" " +
+                                        "<button id=\"start-upload-btn\" onclick=\"window.ExerciseStatusFilePlugin.startMultiFeedbackUpload(" + assignmentId + ")\" " +
                                                 "style=\"padding: 8px 15px; background: #6c757d; color: white; border: none; border-radius: 3px; cursor: pointer;\" disabled>" +
                                             "📤 ' . $txt['upload_start'] . '" +
                                         "</button>" +
@@ -474,7 +477,7 @@ class ilExTeamButtonRenderer
                                     "<div style=\"color: #666; font-size: 14px;\">" +
                                         "💡 ' . $txt['upload_hint'] . '" +
                                     "</div>" +
-                                    "<button id=\"start-upload-btn\" onclick=\"window.ExerciseStatusFilePlugin.startMultiFeedbackUpload(0)\" " +
+                                    "<button id=\"start-upload-btn\" onclick=\"window.ExerciseStatusFilePlugin.startMultiFeedbackUpload(window.ExerciseStatusFilePlugin.currentAssignmentId)\" " +
                                             "style=\"padding: 8px 15px; background: #6c757d; color: white; border: none; border-radius: 3px; cursor: pointer;\" disabled>" +
                                         "📤 ' . $txt['upload_start'] . '" +
                                     "</button>" +
@@ -610,7 +613,7 @@ class ilExTeamButtonRenderer
                                 "<div style=\"font-size: 48px; color: #dc3545; margin-bottom: 20px;\">❌</div>" +
                                 "<h4 style=\"color: #dc3545; margin-bottom: 15px;\">' . $txt['upload_error'] . '</h4>" +
                                 "<p style=\"color: #666; margin-top: 15px;\">" + error + "</p>" +
-                                "<button onclick=\"window.ExerciseStatusFilePlugin.switchTab(0, \'upload\')\" " +
+                                "<button onclick=\"window.ExerciseStatusFilePlugin.switchTab(window.ExerciseStatusFilePlugin.currentAssignmentId, \'upload\')\" " +
                                         "style=\"margin-top: 20px; padding: 10px 20px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;\">" +
                                     "' . $txt['upload_retry'] . '" +
                                 "</button>" +
