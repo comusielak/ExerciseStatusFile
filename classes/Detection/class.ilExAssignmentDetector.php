@@ -158,15 +158,10 @@ class ilExAssignmentDetector
             if (count($assignments) === 1) {
                 return array_values($assignments)[0]->getId();
             }
-            
-            // Team-Assignment bevorzugen
-            foreach ($assignments as $assignment) {
-                if ($assignment->getType() == 4) {
-                    return $assignment->getId();
-                }
-            }
-            
-            // Fallback: Erstes Assignment
+
+            // Mehrere Assignments: Erstes nehmen als Fallback
+            // Hinweis: Bei mehreren Assignments sollte User explizit eins auswählen (über Dropdown)
+            // Dieser Fallback wird nur nach frischem Login verwendet, bis User ein Assignment wählt
             return array_values($assignments)[0]->getId();
             
         } catch (Exception $e) {

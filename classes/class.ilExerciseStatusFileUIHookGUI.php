@@ -89,7 +89,13 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
             // Assignment Detection
             $detector = new ilExAssignmentDetector();
             $assignment_id = $detector->detectAssignmentId();
-            
+
+            // Nur rendern wenn Assignment-ID gefunden wurde
+            if ($assignment_id === null) {
+                $this->logger->debug("No assignment ID found - skipping Multi-Feedback button rendering");
+                return;
+            }
+
             // UI-Rendering nur wenn Template verfügbar
             if (isset($DIC['tpl'])) {
                 $this->renderUI($assignment_id);
