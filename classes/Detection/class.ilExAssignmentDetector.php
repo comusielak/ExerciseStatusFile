@@ -29,22 +29,36 @@ class ilExAssignmentDetector
         // 1. Direkte Parameter
         $direct_result = $this->detectFromDirectParams();
         if ($direct_result) {
+            // In Session speichern für zukünftige Requests
+            $this->saveToSession($direct_result);
             return $direct_result;
         }
-        
+
         // 2. Session
         $session_result = $this->detectFromSession();
         if ($session_result) {
             return $session_result;
         }
-        
+
         // 3. Exercise Context
         $exercise_result = $this->detectFromExerciseContext();
         if ($exercise_result) {
             return $exercise_result;
         }
-        
+
         return null;
+    }
+
+    /**
+     * Assignment ID in Session speichern
+     */
+    private function saveToSession(int $assignment_id): void
+    {
+        try {
+            $_SESSION['exc_status_file_last_assignment'] = $assignment_id;
+        } catch (Exception) {
+            // Fehler ignorieren - nicht kritisch
+        }
     }
     
     /**
@@ -53,23 +67,23 @@ class ilExAssignmentDetector
     private function detectFromDirectParams(): ?int
     {
         global $DIC;
-        
+
         $sources = [
             $_GET['ass_id'] ?? null,
             $_POST['ass_id'] ?? null,
             $DIC->http()->request()->getQueryParams()['ass_id'] ?? null,
             $DIC->http()->request()->getParsedBody()['ass_id'] ?? null
         ];
-        
+
         foreach ($sources as $value) {
             if ($value && is_numeric($value)) {
                 return (int)$value;
             }
         }
-        
+
         return null;
     }
-    
+
     /**
      * Detection über Session
      */
@@ -77,21 +91,27 @@ class ilExAssignmentDetector
     {
         try {
             $session_data = $_SESSION ?? [];
-            
+
+            // Unser eigener Session-Key (höchste Priorität)
+            if (isset($session_data['exc_status_file_last_assignment']) &&
+                is_numeric($session_data['exc_status_file_last_assignment'])) {
+                return (int)$session_data['exc_status_file_last_assignment'];
+            }
+
             $possible_keys = [
                 'exc_assignment',
-                'current_assignment', 
+                'current_assignment',
                 'selected_assignment',
                 'ass_id',
                 'exercise_assignment'
             ];
-            
+
             foreach ($possible_keys as $key) {
                 if (isset($session_data[$key]) && is_numeric($session_data[$key])) {
                     return (int)$session_data[$key];
                 }
             }
-            
+
             // Verschachtelte Arrays
             foreach ($session_data as $main_key => $value) {
                 if (is_array($value) && strpos($main_key, 'exc') !== false) {
@@ -102,9 +122,9 @@ class ilExAssignmentDetector
                     }
                 }
             }
-            
+
             return null;
-            
+
         } catch (Exception $e) {
             $this->logger->error("Assignment detection session error: " . $e->getMessage());
             return null;
