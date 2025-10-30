@@ -31,12 +31,14 @@ class ilExFeedbackUploadHandler
     {
         $assignment_id = $parameters['assignment_id'] ?? 0;
         $tutor_id = $parameters['tutor_id'] ?? 0;
-        
+
+        $this->logger->info("=== FEEDBACK UPLOAD HANDLER CALLED === Assignment: $assignment_id, Version: 2025-10-30-11:20");
+
         if (!$assignment_id) {
             $this->logger->warning("Upload handler: Missing assignment_id");
             return;
         }
-        
+
         try {
             $assignment = new \ilExAssignment($assignment_id);
             $zip_content = $this->extractZipContent($parameters);
@@ -66,19 +68,26 @@ class ilExFeedbackUploadHandler
     {
         $temp_zip = $this->createTempZipFile($zip_content, 'team_feedback');
         if (!$temp_zip) return;
-        
+
         try {
             $this->validateZipForAssignment($temp_zip, $assignment_id);
-            
+
             $extracted_files = $this->extractZipContents($temp_zip, 'team_extract');
             $status_files = $this->findStatusFiles($extracted_files);
-            
+
+            // Status-File-Verarbeitung ist optional
             if (!empty($status_files)) {
-                $this->processStatusFiles($status_files, $assignment_id, true);
+                try {
+                    $this->processStatusFiles($status_files, $assignment_id, true);
+                } catch (Exception $e) {
+                    // Wenn Status-Verarbeitung fehlschlägt, trotzdem Feedback-Files verarbeiten
+                    $this->logger->info("Status file processing skipped: " . $e->getMessage());
+                }
             }
-            
+
+            // Feedback-Files werden unabhängig von Status-Updates verarbeitet
             $this->processTeamFeedbackFiles($extracted_files, $assignment_id);
-            
+
         } finally {
             $this->cleanupTempFile($temp_zip);
         }
@@ -91,19 +100,26 @@ class ilExFeedbackUploadHandler
     {
         $temp_zip = $this->createTempZipFile($zip_content, 'individual_feedback');
         if (!$temp_zip) return;
-        
+
         try {
             $this->validateZipForAssignment($temp_zip, $assignment_id);
-            
+
             $extracted_files = $this->extractZipContents($temp_zip, 'individual_extract');
             $status_files = $this->findStatusFiles($extracted_files);
-            
+
+            // Status-File-Verarbeitung ist optional
             if (!empty($status_files)) {
-                $this->processStatusFiles($status_files, $assignment_id, false);
+                try {
+                    $this->processStatusFiles($status_files, $assignment_id, false);
+                } catch (Exception $e) {
+                    // Wenn Status-Verarbeitung fehlschlägt, trotzdem Feedback-Files verarbeiten
+                    $this->logger->info("Status file processing skipped: " . $e->getMessage());
+                }
             }
-            
+
+            // Feedback-Files werden unabhängig von Status-Updates verarbeitet
             $this->processIndividualFeedbackFiles($extracted_files, $assignment_id);
-            
+
         } finally {
             $this->cleanupTempFile($temp_zip);
         }
@@ -161,16 +177,10 @@ class ilExFeedbackUploadHandler
         }
         
         $zip->close();
-        
+
         // Validierungen
-        if (empty($status_files_found)) {
-            $available_files = array_map('basename', $file_list);
-            throw new Exception(
-                "Keine Status-Dateien im ZIP gefunden.\n\n" .
-                "Erwartet: status.xlsx, status.csv\n" .
-                "Gefunden: " . implode(', ', array_slice($available_files, 0, 10))
-            );
-        }
+        // Status-Datei ist optional - Feedback kann auch ohne Status-Updates hochgeladen werden
+        // (keine Exception, nur Info-Log wenn keine Status-Datei vorhanden)
         
         if ($is_team_assignment && !$has_team_structure) {
             throw new Exception("Team-Assignment benötigt Team-Ordner (Team_1/, Team_2/, etc.)");
@@ -278,10 +288,36 @@ class ilExFeedbackUploadHandler
             for ($i = 0; $i < $zip->numFiles; $i++) {
                 $filename = $zip->getNameIndex($i);
                 if (empty($filename) || substr($filename, -1) === '/') continue;
-                
+
+                // Security: Prevent path traversal attacks
+                // Remove any ../ or absolute paths
+                $safe_filename = str_replace(['../', '..\\', '../', '..\\'], '', $filename);
+
+                // Remove leading slashes (absolute paths)
+                $safe_filename = ltrim($safe_filename, '/\\');
+
+                // If filename was completely removed or contains null bytes, skip
+                if (empty($safe_filename) || strpos($safe_filename, "\0") !== false) {
+                    $this->logger->warning("Suspicious filename detected and skipped: $filename");
+                    continue;
+                }
+
                 $zip->extractTo($extract_dir, $filename);
-                $extracted_path = $extract_dir . '/' . $filename;
-                
+                $extracted_path = $extract_dir . '/' . $safe_filename;
+
+                // Security: Verify extracted file is actually inside extract_dir
+                $real_extract_dir = realpath($extract_dir);
+                $real_extracted_path = realpath($extracted_path);
+
+                if ($real_extracted_path === false || strpos($real_extracted_path, $real_extract_dir) !== 0) {
+                    $this->logger->warning("Path traversal attempt detected: $filename");
+                    // Delete the file if it was extracted outside
+                    if (file_exists($extracted_path)) {
+                        @unlink($extracted_path);
+                    }
+                    continue;
+                }
+
                 if (file_exists($extracted_path)) {
                     $extracted_files[] = [
                         'original_name' => $filename,
@@ -482,16 +518,22 @@ class ilExFeedbackUploadHandler
      */
     private function processTeamFeedbackFiles(array $extracted_files, int $assignment_id): void
     {
+        $this->logger->info("processTeamFeedbackFiles: Starting with " . count($extracted_files) . " extracted files");
+
         $team_feedback_files = $this->findTeamFeedbackFiles($extracted_files);
-        
+
+        $this->logger->info("processTeamFeedbackFiles: Found " . count($team_feedback_files) . " teams with feedback files");
+
         if (empty($team_feedback_files)) {
+            $this->logger->info("processTeamFeedbackFiles: No team feedback files found, returning");
             return;
         }
-        
+
         foreach ($team_feedback_files as $team_id => $files) {
+            $this->logger->info("processTeamFeedbackFiles: Processing team_id=$team_id with " . count($files) . " files");
             $this->processTeamSpecificFeedback($team_id, $files, $assignment_id);
         }
-        
+
         $this->processing_stats['team_feedback_files'] = count($team_feedback_files);
     }
     
@@ -519,18 +561,22 @@ class ilExFeedbackUploadHandler
     private function findTeamFeedbackFiles(array $extracted_files): array
     {
         $team_files = [];
-        
+
         foreach ($extracted_files as $file) {
             $path = $file['original_name'];
-            
-            if (preg_match('/Team_(\d+)\/[^\/]+\/(.+)/', $path, $matches)) {
+
+            // Pattern: .../Team_13/Username/file.ext
+            // Wichtig: Team_ muss nach einem / stehen (nicht in der Mitte eines Ordnernamens)
+            if (preg_match('/\/Team_(\d+)\/[^\/]+\/([^\/]+)$/', $path, $matches)) {
                 $team_id = (int)$matches[1];
                 $filename = $matches[2];
-                
+
+                $this->logger->info("findTeamFeedbackFiles: Found file '$filename' for team_id=$team_id in path: $path");
+
                 if (!isset($team_files[$team_id])) {
                     $team_files[$team_id] = [];
                 }
-                
+
                 $team_files[$team_id][] = [
                     'filename' => $filename,
                     'path' => $file['extracted_path'],
@@ -538,7 +584,9 @@ class ilExFeedbackUploadHandler
                 ];
             }
         }
-        
+
+        $this->logger->info("findTeamFeedbackFiles: Returning " . count($team_files) . " teams: " . implode(', ', array_keys($team_files)));
+
         return $team_files;
     }
     
@@ -592,29 +640,20 @@ class ilExFeedbackUploadHandler
                 $this->logger->warning("Team $team_id has no members");
                 return;
             }
-            
-            // Prüfe ob IRGENDEIN Team-Mitglied für Update markiert wurde
-            $team_marked_for_update = false;
-            foreach ($member_ids as $member_id) {
-                if ($this->isUserMarkedForUpdate($assignment_id, $member_id)) {
-                    $team_marked_for_update = true;
-                    break;
-                }
-            }
-            
-            if (!$team_marked_for_update) {
-                return;
-            }
-            
+
+            // Feedback-Dateien werden immer verarbeitet, auch ohne Status-Update
+            // Dies macht die Handhabung für Tutoren intuitiver
+
             $this->logger->debug("Processing feedback for team $team_id with " . count($member_ids) . " members");
             
             // Verarbeite Files für JEDES Team-Mitglied
             foreach ($member_ids as $member_id) {
                 $existing_submissions = $this->getExistingSubmissionFiles($assignment_id, $member_id);
                 $new_feedback_files = $this->filterNewFeedbackFiles($files, $existing_submissions);
-                
+
                 if (!empty($new_feedback_files)) {
-                    $this->processUserSpecificFeedback($member_id, $new_feedback_files, $assignment_id);
+                    // Already filtered, so skip filtering in processUserSpecificFeedback
+                    $this->processUserSpecificFeedback($member_id, $new_feedback_files, $assignment_id, true);
                 }
             }
             
@@ -625,19 +664,24 @@ class ilExFeedbackUploadHandler
     
     /**
      * Verarbeitet User-spezifisches Feedback
+     * @param bool $already_filtered Ob die Files bereits gefiltert wurden (vermeidet doppelte Filterung)
      */
-    private function processUserSpecificFeedback(int $user_id, array $files, int $assignment_id): void
+    private function processUserSpecificFeedback(int $user_id, array $files, int $assignment_id, bool $already_filtered = false): void
     {
         global $DIC;
-        
+
         try {
-            if (!$this->isUserMarkedForUpdate($assignment_id, $user_id)) {
-                return;
+            // Feedback-Dateien werden immer verarbeitet, auch ohne Status-Update
+            // Dies macht die Handhabung für Tutoren intuitiver
+
+            // Nur filtern wenn noch nicht gefiltert
+            if (!$already_filtered) {
+                $existing_submissions = $this->getExistingSubmissionFiles($assignment_id, $user_id);
+                $new_feedback_files = $this->filterNewFeedbackFiles($files, $existing_submissions);
+            } else {
+                $new_feedback_files = $files;
             }
-            
-            $existing_submissions = $this->getExistingSubmissionFiles($assignment_id, $user_id);
-            $new_feedback_files = $this->filterNewFeedbackFiles($files, $existing_submissions);
-            
+
             if (empty($new_feedback_files)) {
                 return;
             }
@@ -818,17 +862,6 @@ class ilExFeedbackUploadHandler
     }
 
     /**
-     * Prüft ob User in Status-Updates markiert wurde
-     */
-    private function isUserMarkedForUpdate(int $assignment_id, int $user_id): bool
-    {
-        if (isset($this->processing_stats['updated_users'])) {
-            return in_array($user_id, $this->processing_stats['updated_users']);
-        }
-        return false;
-    }    
-
-    /**
      * Hole bereits abgegebene Submissions des Users
      */
     private function getExistingSubmissionFiles(int $assignment_id, int $user_id): array
@@ -881,42 +914,51 @@ class ilExFeedbackUploadHandler
     private function filterNewFeedbackFiles(array $files, array $existing_submissions): array
     {
         $new_files = [];
-        
+
+        $this->logger->debug("filterNewFeedbackFiles: Checking " . count($files) . " files against " . count($existing_submissions) . " existing submissions");
+
         foreach ($files as $file) {
             $filename = $file['filename'];
-            
+
             // Skip Status-Files und System-Files
             if (in_array($filename, ['status.xlsx', 'status.csv', 'status.xls', 'README.md'])) {
+                $this->logger->debug("filterNewFeedbackFiles: Skipping system file: $filename");
                 continue;
             }
-            
+
             if (substr($filename, 0, 1) === '.' || substr($filename, 0, 2) === '__') {
+                $this->logger->debug("filterNewFeedbackFiles: Skipping hidden file: $filename");
                 continue;
             }
-            
+
             // Normalisiere Dateinamen
             $clean_filename = preg_replace('/^(\d{14})_/', '', $filename);
-            
+
             // Prüfe ob File bereits als Submission existiert
             $is_submission = false;
             foreach ($existing_submissions as $submission) {
                 if ($filename === $submission || $clean_filename === $submission) {
                     $is_submission = true;
+                    $this->logger->debug("filterNewFeedbackFiles: '$filename' matches existing submission '$submission' - FILTERED OUT");
                     break;
                 }
-                
+
                 $clean_submission = preg_replace('/^(\d{14})_/', '', $submission);
                 if ($clean_filename === $clean_submission) {
                     $is_submission = true;
+                    $this->logger->debug("filterNewFeedbackFiles: '$filename' (cleaned: '$clean_filename') matches existing submission '$submission' (cleaned: '$clean_submission') - FILTERED OUT");
                     break;
                 }
             }
-            
+
             if (!$is_submission) {
+                $this->logger->debug("filterNewFeedbackFiles: '$filename' is NEW feedback file - ADDED");
                 $new_files[] = $file;
             }
         }
-        
+
+        $this->logger->debug("filterNewFeedbackFiles: Result: " . count($new_files) . " new feedback files");
+
         return $new_files;
     }
     

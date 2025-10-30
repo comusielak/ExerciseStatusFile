@@ -1,0 +1,31 @@
+# KI-Entwicklungs-Infos (nur lokal)
+ki_infos/
+
+# Composer
+vendor/
+composer.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temp files
+*.tmp
+*.temp
+
+# Test files
+multifeedback.zip
+test*.zip
+
+# OPcache clearing script (nur für Entwicklung)
+clear_opcache.php

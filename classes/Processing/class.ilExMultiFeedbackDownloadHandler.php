@@ -683,11 +683,13 @@ class ilExMultiFeedbackDownloadHandler
                "        └── [Submissions]      # " . $this->plugin->txt('readme_structure_submissions') . "\n" .
                "```\n\n" .
                "## " . $this->plugin->txt('readme_workflow') . "\n\n" .
-               "1. **" . $this->plugin->txt('readme_workflow_step1') . ":** " . 
-                   sprintf($this->plugin->txt('readme_workflow_step1_desc'), '`status.xlsx`', '`status.csv`') . 
+               "1. **" . $this->plugin->txt('readme_workflow_step1') . ":** " .
+                   sprintf($this->plugin->txt('readme_workflow_step1_desc'), '`status.xlsx`', '`status.csv`') .
                    " Bei `update` eine `1` eintragen, wenn die entsprechende Zeile aktualisiert werden soll.\n" .
-               "2. **" . $this->plugin->txt('readme_workflow_step2') . ":** " . $this->plugin->txt('readme_workflow_step2_desc') . " *(Noch in Entwicklung)*\n" .
-               "3. **" . $this->plugin->txt('readme_workflow_step3') . ":** " . $this->plugin->txt('readme_workflow_step3_desc') . "\n\n" .
+               "2. **" . $this->plugin->txt('readme_workflow_step2') . ":** " . $this->plugin->txt('readme_workflow_step2_desc') .
+                   " **WICHTIG:** Ordner-Namen dürfen NICHT geändert werden!\n" .
+               "3. **" . $this->plugin->txt('readme_workflow_step3') . ":** " . $this->plugin->txt('readme_workflow_step3_desc') .
+                   " Feedback-Dateien werden automatisch verarbeitet.\n\n" .
                "## " . $this->plugin->txt('readme_team_overview') . "\n\n" .
                $this->generateTeamOverviewForReadme($teams) . "\n";
     }
