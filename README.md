@@ -149,6 +149,54 @@ Beim Upload werden Feedback-Dateien mit bestehenden Submissions verglichen:
 - Bei Teams: Submissions aller Team-Mitglieder werden berücksichtigt
 - Nur neue Dateien werden als Feedback hochgeladen
 
+## Tests
+
+### Automatisierte Tests ausführen
+
+Das Plugin enthält automatisierte Smoke-Tests, die die grundlegende Funktionalität überprüfen.
+
+**Tests starten:**
+
+```bash
+cd tests/
+php smoke-test.php
+```
+
+**Was wird getestet:**
+- ✅ Dateistruktur (Plugin-Dateien vorhanden)
+- ✅ PHP-Syntax (keine Syntax-Fehler)
+- ✅ Klassen-Struktur (erforderliche Methoden vorhanden)
+- ✅ Security-Features (Path Traversal Prevention)
+
+**Erwartetes Ergebnis:**
+```
+ExerciseStatusFile Plugin - Smoke Tests
+========================================
+
+Running tests...
+
+✅ File structure: plugin.php exists
+✅ File structure: class.ilExerciseStatusFileUIHookGUI.php exists
+...
+✅ Security: Path traversal prevention - ../ filtering
+✅ Security: Path traversal prevention - realpath() check
+
+========================================
+Results: ✅ Passed: 29, ❌ Failed: 0, ⚠️ Warnings: 0
+========================================
+ALL TESTS PASSED! ✅
+```
+
+### Manuelle Tests
+
+Für umfassende Funktionstests siehe [tests/MANUAL_TESTS.md](tests/MANUAL_TESTS.md).
+
+Diese beinhalten:
+- Individual und Team Assignments
+- Feedback Upload mit/ohne Status-Updates
+- Security-Tests (Path Traversal)
+- Performance-Tests (große Dateien)
+
 ## Support
 
 - GitHub: https://github.com/comusielak/ExerciseStatusFile
