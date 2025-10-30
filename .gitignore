@@ -1,6 +1,9 @@
 # KI-Entwicklungs-Infos (nur lokal)
 ki_infos/
 
+# Local settings
+settings.local.json
+
 # Composer
 vendor/
 composer.lock
