@@ -32,6 +32,7 @@ class SmokeTests
         $this->testPhpSyntax();
         $this->testClassStructure();
         $this->testSecurityFunctions();
+        $this->testAssignmentDetection();
 
         echo "\n";
         echo "───────────────────────────────────────────────────────\n";
@@ -201,6 +202,35 @@ class SmokeTests
             "File deletion on security violation",
             fn() => strpos($upload_handler, '@unlink') !== false ||
                     strpos($upload_handler, 'unlink($extracted_path)') !== false
+        );
+    }
+
+    private function testAssignmentDetection(): void
+    {
+        echo "\n🎯 Assignment Detection Tests\n";
+        echo "───────────────────────────────────────────────────────\n";
+
+        $detector_file = PLUGIN_DIR . '/classes/Detection/class.ilExAssignmentDetector.php';
+        $detector_content = file_get_contents($detector_file);
+
+        $this->test(
+            "Assignment detection: saveToSession method exists",
+            fn() => strpos($detector_content, 'private function saveToSession') !== false
+        );
+
+        $this->test(
+            "Assignment detection: Session storage implementation",
+            fn() => strpos($detector_content, "exc_status_file_last_assignment") !== false
+        );
+
+        $this->test(
+            "Assignment detection: Session detection checks custom key",
+            fn() => strpos($detector_content, "['exc_status_file_last_assignment']") !== false
+        );
+
+        $this->test(
+            "Assignment detection: saveToSession called on direct params",
+            fn() => strpos($detector_content, '$this->saveToSession($direct_result)') !== false
         );
     }
 

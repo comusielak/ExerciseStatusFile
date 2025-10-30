@@ -223,6 +223,50 @@ Dies beweist, dass die Warnung "Ordner-Namen nicht ändern" wichtig ist!
 
 ---
 
+## Test 9: Assignment Detection - Gemischte Übungstypen
+
+**Zweck:** Testet dass bei mehreren Assignments (Individual + Team) das richtige Assignment verwendet wird
+
+### Voraussetzungen:
+- Übung mit **mindestens 2 Assignments**: 1x Individual Assignment + 1x Team Assignment
+- Beide Assignments haben Abgaben
+
+### Schritte:
+1. Gehe zur Übung mit gemischten Assignment-Typen
+2. Wähle ein **Individual Assignment** aus dem Dropdown
+3. Notiere die `ass_id` aus der URL (z.B. `?ass_id=46`)
+4. Entferne die `ass_id` **manuell** aus der URL (Browser-Adressleiste bearbeiten)
+5. Drücke Enter um Seite neu zu laden
+6. Klicke auf "Multi-Feedback Download"
+
+### Erwartetes Ergebnis:
+- [ ] Multi-Feedback Dialog öffnet sich korrekt
+- [ ] **Tab "Individual"** wird angezeigt
+- [ ] User-Liste wird geladen (keine Team-Liste)
+- [ ] **KEIN** Fehler "Fehler beim Laden der Teams" oder "Keine Teams gefunden"
+- [ ] Download funktioniert für ausgewählte User
+
+### Bei Fehler:
+```bash
+# Check ob Session die Assignment-ID enthält
+tail -50 /var/www/studon7_extras/studon7.log | grep "Assignment detected"
+```
+
+**Erwarteter Log-Eintrag:**
+```
+Assignment detected from session: 46
+```
+
+**Falls falsch (alter Bug):**
+```
+Assignment detected from exercise context: 47  ← Falsches Assignment!
+```
+
+### Hinweis:
+Dieser Test stellt sicher, dass das Plugin die richtige Assignment-ID aus der Session verwendet, wenn sie in der URL fehlt. Ohne diesen Fix würde das Plugin bei mehreren Assignments das falsche (z.B. ein Team-Assignment) auswählen.
+
+---
+
 ## Checkliste - Alle Tests
 
 Nach Durchführung aller Tests:
@@ -235,6 +279,7 @@ Nach Durchführung aller Tests:
 - [ ] Test 6: Security (optional, Testumgebung) ✅
 - [ ] Test 7: Große Dateien ✅
 - [ ] Test 8: Ordner-Namen Validierung ✅
+- [ ] Test 9: Assignment Detection ✅
 
 **Alle Tests bestanden?**
 - Ja → Plugin ist produktionsbereit ✅
