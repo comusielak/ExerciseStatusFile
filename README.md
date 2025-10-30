@@ -7,7 +7,7 @@ Status-File und Multi-Feedback Erweiterung für ILIAS Übungen (Exercises).
 ### 1. Status-File Export/Import
 - Export von Bewertungen als Excel (.xlsx) oder CSV
 - Bearbeitung von Status, Noten, Kommentaren außerhalb von ILIAS
-- Batch-Import von Änderungen
+- Import mehrerer Änderungen auf einmal (markierte Zeilen mit `update=1`)
 - Unterstützt Individual- und Team-Assignments
 
 ### 2. Multi-Feedback Download
