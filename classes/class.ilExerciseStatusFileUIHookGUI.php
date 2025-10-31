@@ -318,28 +318,42 @@ class ilExerciseStatusFileUIHookGUI extends ilUIHookPluginGUI
     
     /**
      * Assignment-Info aus Datenbank
+     *
+     * FIXED: Verwendet jetzt usesTeams() statt hardcoded type == 4
+     * um auch Custom Assignment Types (wie ExAutoScore) zu unterstützen
      */
     private function getAssignmentInfo(int $assignment_id): string
     {
         try {
             global $DIC;
             $db = $DIC->database();
-            
+
             $query = "SELECT exc_id, type FROM exc_assignment WHERE id = " . $db->quote($assignment_id, 'integer');
             $result = $db->query($query);
-            
+
             if ($result->numRows() > 0) {
                 $row = $db->fetchAssoc($result);
                 $type = $row['type'];
-                
-                $is_team_assignment = ($type == 4);
+
+                // FIXED: Lade Assignment-Objekt und prüfe usesTeams()
+                // Dies funktioniert auch mit Custom Assignment Types (z.B. ExAutoScore)
+                try {
+                    $assignment = new \ilExAssignment($assignment_id);
+                    $assignment_type = $assignment->getAssignmentType();
+                    $is_team_assignment = $assignment_type->usesTeams();
+                } catch (Exception $e) {
+                    // Fallback auf Type 4 wenn Assignment-Objekt nicht geladen werden kann
+                    $this->logger->warning("Could not load assignment type object, falling back to type check: " . $e->getMessage());
+                    $is_team_assignment = ($type == 4);
+                }
+
                 $team_status = $is_team_assignment ? "✅ IS TEAM" : "❌ NOT TEAM";
-                
+
                 return "DB OK: type=$type ($team_status)";
             }
-            
+
             return "DB: Assignment not found";
-            
+
         } catch (Exception $e) {
             $this->logger->error("Assignment info DB error: " . $e->getMessage());
             return "DB Error";
