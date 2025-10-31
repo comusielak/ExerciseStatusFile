@@ -31,6 +31,7 @@ class SmokeTests
         $this->testFileStructure();
         $this->testPhpSyntax();
         $this->testClassStructure();
+        $this->testTeamDetection();
         $this->testSecurityFunctions();
         $this->testAssignmentDetection();
 
@@ -164,6 +165,64 @@ class SmokeTests
             "Dead method isUserMarkedForUpdate removed",
             fn() => strpos($upload_handler, 'function isUserMarkedForUpdate') === false,
             false
+        );
+    }
+
+    private function testTeamDetection(): void
+    {
+        echo "\n👥 Team Detection Tests\n";
+        echo "───────────────────────────────────────────────────────\n";
+
+        $ui_hook = file_get_contents(PLUGIN_DIR . '/classes/class.ilExerciseStatusFileUIHookGUI.php');
+
+        $this->test(
+            "getAssignmentInfo uses usesTeams() method",
+            fn() => strpos($ui_hook, 'usesTeams()') !== false
+        );
+
+        $this->test(
+            "Team detection doesn't rely on hardcoded type == 4 only",
+            function() use ($ui_hook) {
+                // Check that usesTeams() is used BEFORE the fallback
+                $uses_teams_pos = strpos($ui_hook, 'usesTeams()');
+                $type_check_pos = strpos($ui_hook, '$type == 4');
+
+                if ($uses_teams_pos === false) {
+                    return "usesTeams() not found in code";
+                }
+
+                // If type == 4 exists, it should be AFTER usesTeams() (in fallback)
+                if ($type_check_pos !== false && $type_check_pos < $uses_teams_pos) {
+                    return "type == 4 check appears before usesTeams() - wrong order";
+                }
+
+                return true;
+            }
+        );
+
+        $this->test(
+            "getAssignmentInfo has proper exception handling",
+            fn() => strpos($ui_hook, 'try {') !== false &&
+                    strpos($ui_hook, 'catch (Exception') !== false &&
+                    strpos($ui_hook, 'getAssignmentInfo') !== false
+        );
+
+        $this->test(
+            "Fallback mechanism exists for type detection",
+            fn() => strpos($ui_hook, 'Fallback') !== false ||
+                    strpos($ui_hook, 'fallback') !== false
+        );
+
+        $this->test(
+            "Team detection uses ILIAS Assignment API",
+            fn() => strpos($ui_hook, 'new \ilExAssignment') !== false ||
+                    strpos($ui_hook, 'new \\ilExAssignment') !== false
+        );
+
+        $this->test(
+            "Team vs Individual modal routing exists",
+            fn() => strpos($ui_hook, 'renderTeamButton') !== false &&
+                    strpos($ui_hook, 'renderIndividualButton') !== false
         );
     }
 
